@@ -13,6 +13,7 @@
 #include "ui/radar_display.h"
 #include "ui/radar_range.h"
 #include "ui/status_screens.h"
+#include "version.h"
 
 namespace {
 
@@ -67,6 +68,7 @@ void setup() {
   delay(500);
   Serial.println();
   Serial.println("Plane Radar");
+  Serial.printf("Firmware: %s\n", firmware::kVersion);
 
   bootButtonInit();
   displayInit();
