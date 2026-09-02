@@ -53,7 +53,7 @@ jobs:
 
       - name: Build and merge
         env:
-          PLATFORMIO_BUILD_FLAGS: '-DPLANE_RADAR_VERSION="${{ env.VERSION }}"'
+          PLATFORMIO_BUILD_FLAGS: '-DPLANE_RADAR_VERSION=\"${{ env.VERSION }}\"'
         run: |
           pio run -e supermini
           pio run -t merge -e supermini
