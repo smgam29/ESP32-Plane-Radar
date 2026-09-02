@@ -4,6 +4,7 @@
 Import("env")
 
 import os
+import shutil
 from os.path import join
 
 
@@ -29,6 +30,10 @@ def merge_firmware(source, target, env):
     ):
         if not os.path.isfile(path):
             raise FileNotFoundError(f"Missing {label}: {path}")
+
+    # Keep every split-flash component together for CI artifacts and the
+    # NVS-preserving first-install package.
+    shutil.copyfile(boot_app0, join(build_dir, "boot_app0.bin"))
 
     cmd = [
         env.subst("$PYTHONEXE"),

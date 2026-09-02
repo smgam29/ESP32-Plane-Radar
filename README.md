@@ -162,9 +162,19 @@ pio device monitor
 - Serial: **115200** baud
 - USB CDC on boot enabled in `platformio.ini` for the Super Mini
 
-### Web-flashable release image
+### Firmware images
 
-Single `.bin` for [esptool-js](https://espressif.github.io/esptool-js/) and similar tools (ESP32-C3, 4 MB, flash at **0x0**):
+Build the application image used by the local OTA page:
+
+```bash
+pio run -e supermini
+```
+
+Upload `.pio/build/supermini/firmware.bin` from the device web page. Do not
+upload a merged image there.
+
+For a complete USB/browser flash, create the merged factory image (ESP32-C3,
+4 MB, flash at **0x0**):
 
 ```bash
 chmod +x scripts/merge-firmware.sh   # once
@@ -186,21 +196,28 @@ pio run -t merge -e supermini
 
 Put the board in download mode (hold **BOOT**, tap **RESET**), then flash with Chrome/Edge over USB.
 
+Changing an existing installation to the dual-slot OTA layout while preserving
+its saved settings requires the four split images. Flash `bootloader.bin` at
+`0x0`, `partitions.bin` at `0x8000`, `boot_app0.bin` at `0xe000`, and
+`firmware.bin` at `0x10000`, without erasing all flash. This deliberately leaves
+the NVS partition at `0x9000` untouched.
+
 ### CI and releases (GitHub Actions)
 
 | Workflow | When | Output |
 |----------|------|--------|
 | [Build](.github/workflows/build.yml) | Push / PR to `main` | Artifact `plane-radar-supermini` (merged + split `.bin` files, ~90 days) |
-| [Release](.github/workflows/release.yml) | Git tag `v*` (e.g. `v1.0.0`) | GitHub Release asset `plane-radar-v1.0.0.bin` + `.sha256` |
+| [Release](.github/workflows/release.yml) | Git tag `v*` (e.g. `v1.2.0`) | Distinct OTA, factory, and NVS-preserving installer assets + `.sha256` files |
 
 To ship a version users can download:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
-The release workflow builds firmware in CI and attaches the merged image to the release. Download from **Releases** on GitHub, then flash at **0x0** (ESP32-C3, 4 MB).
+The release workflow labels the application image `*-ota.bin`, the complete
+USB image `*-factory.bin`, and also provides an NVS-preserving split installer.
 
 ## Dependencies
 
