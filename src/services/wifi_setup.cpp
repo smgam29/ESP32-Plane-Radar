@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "services/radar_location.h"
+#include "services/web_portal.h"
 #include "ui/radar_range.h"
 #include "ui/status_screens.h"
 
@@ -225,6 +226,7 @@ void ensureWifiManager() {
                            IPAddress(255, 255, 255, 0));
   s_wm.setHostname(config::kPortalHostname);
   s_wm.setAPCallback(onConfigPortalApStarted);
+  services::web::attach(s_wm);
   attachPortalParams(s_wm);
   s_wm_configured = true;
 }
