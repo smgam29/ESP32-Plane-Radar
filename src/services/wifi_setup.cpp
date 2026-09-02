@@ -439,6 +439,7 @@ bool wifiReconnect() {
 
 void wifiLoop() {
   ensureWifiManager();
+  services::web::loop();
   if (wifiLinkUp()) {
     if (!s_wm.getWebPortalActive() && !s_wm.getConfigPortalActive()) {
       startLanWebPortal();

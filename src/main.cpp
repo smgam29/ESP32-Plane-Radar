@@ -9,6 +9,7 @@
 #include "hardware/display.h"
 #include "services/adsb_client.h"
 #include "services/radar_location.h"
+#include "services/web_portal.h"
 #include "services/wifi_setup.h"
 #include "ui/radar_display.h"
 #include "ui/radar_range.h"
@@ -111,7 +112,8 @@ void loop() {
     g_wifi_down_since = 0;
     if (!g_radar_visible) {
       showRadarIfConnected();
-    } else if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
+    } else if (!services::web::updateInProgress() &&
+               millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
       g_last_adsb_fetch_ms = millis();
       fetchAndDrawAircraft();
     }
