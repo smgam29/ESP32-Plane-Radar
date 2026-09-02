@@ -6,6 +6,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag to build and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Cache PlatformIO
         uses: actions/cache@v4
@@ -40,7 +47,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME}"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="manual-${GITHUB_SHA::7}"
+            VERSION="${{ inputs.release_tag }}"
           fi
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
@@ -61,6 +68,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           files: dist/*
           generate_release_notes: true
         env:
