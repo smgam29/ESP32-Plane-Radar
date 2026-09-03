@@ -10,7 +10,7 @@ void radarDisplayAnimate();
 uint32_t sweepFrameCount();
 uint32_t sweepMaxGapMs();
 
-/** Redraw aircraft only (blits cached grid; no full-screen clear). */
+/** Redraw the frame, or let the active sweep draw the new aircraft next frame. */
 void radarDisplayRefreshAircraft();
 
 }  // namespace ui

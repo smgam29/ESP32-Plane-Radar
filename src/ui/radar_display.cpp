@@ -742,6 +742,9 @@ void radarDisplayDraw() {
 }
 
 void radarDisplayRefreshAircraft() {
+  // The next sweep frame will use the newly applied aircraft snapshot. Avoid
+  // drawing twice back-to-back when a network result arrives after animation.
+  if (s_frame_ready && radar::sweepEnabled()) return;
   initPalette();
 
   if (ensureFrameSprite()) {
