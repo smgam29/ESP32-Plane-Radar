@@ -29,6 +29,18 @@ EXTRA_COUNTRY_AIRPORT_TYPES = {
     "GB": {"medium_airport", "small_airport"},
 }
 
+# OurAirports currently has EGHR's runway identifiers and dimensions but no
+# runway-end coordinates. These WGS-84 thresholds are from the UK AIP
+# Chichester/Goodwood Aerodrome Chart, AD 2-EGHR-2-1 (14 Oct 2025).
+# Keep this exception until upstream supplies usable endpoint coordinates.
+MANUAL_RUNWAY_SEGMENTS = {
+    "EGHR": [
+        (50.8589556, -0.7626639, 50.8624639, -0.7541500, 855),  # 06/24
+        (50.8629500, -0.7633750, 50.8615306, -0.7536889, 700),  # 10/28
+        (50.8626778, -0.7639167, 50.8560833, -0.7549278, 1262),  # 14/32
+    ],
+}
+
 def fetch_csv(url: str) -> list[dict[str, str]]:
     with urllib.request.urlopen(url, timeout=60) as resp:
         text = resp.read().decode("utf-8")
@@ -97,6 +109,7 @@ def build_dataset() -> tuple[
     airport_index = {ident: idx for idx, (ident, _, _) in enumerate(airport_rows)}
 
     segments: list[tuple[int, int, int, int, int, int]] = []
+    airports_with_segments: set[str] = set()
     for r in runways:
         if r.get("closed") == "1":
             continue
@@ -128,6 +141,22 @@ def build_dataset() -> tuple[
                 length_m,
             )
         )
+        airports_with_segments.add(airport)
+
+    for airport, manual_segments in MANUAL_RUNWAY_SEGMENTS.items():
+        if airport not in airport_index or airport in airports_with_segments:
+            continue
+        for le_lat, le_lon, he_lat, he_lon, length_m in manual_segments:
+            segments.append(
+                (
+                    airport_index[airport],
+                    coord_e7(str(le_lat)),
+                    coord_e7(str(le_lon)),
+                    coord_e7(str(he_lat)),
+                    coord_e7(str(he_lon)),
+                    length_m,
+                )
+            )
 
     segments.sort(key=lambda row: (row[0], -row[5]))
     return airport_rows, segments
