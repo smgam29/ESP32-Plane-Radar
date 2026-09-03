@@ -287,7 +287,8 @@ void drawLargeAirportRunways(lgfx::LGFXBase& gfx) {
     if (!drawRunwayLine(gfx, rw)) {
       continue;
     }
-    if (!s_label_pending[ap_idx] && label_count < kMaxAirportLabels) {
+    if (radar::showRunwayLabels() && !s_label_pending[ap_idx] &&
+        label_count < kMaxAirportLabels) {
       s_label_pending[ap_idx] = true;
       label_airports[label_count++] = ap_idx;
     }

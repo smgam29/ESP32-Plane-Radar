@@ -15,6 +15,7 @@ constexpr char kPrefsNamespace[] = "planeradar";
 constexpr char kPrefsRangeKey[] = "rangeIdx";
 constexpr char kPrefsMilesKey[] = "useMiles";
 constexpr char kPrefsRunwaysKey[] = "showRwys";
+constexpr char kPrefsRunwayLabelsKey[] = "showRwLbl";
 constexpr char kPrefsTopDirectionKey[] = "topDir";
 constexpr char kPrefsLabelMaskKey[] = "labelMask";
 constexpr uint8_t kDefaultRangeIndex = 1;  // 10 km ring
@@ -29,6 +30,7 @@ Preferences s_prefs;
 uint8_t s_range_index = kDefaultRangeIndex;
 bool s_use_miles = false;
 bool s_show_runways = true;
+bool s_show_runway_labels = true;
 TopDirection s_top_direction = TopDirection::North;
 uint8_t s_label_mask = kAllLabels;
 
@@ -53,6 +55,14 @@ void saveShowRunways() {
     return;
   }
   s_prefs.putBool(kPrefsRunwaysKey, s_show_runways);
+  s_prefs.end();
+}
+
+void saveShowRunwayLabels() {
+  if (!s_prefs.begin(kPrefsNamespace, false)) {
+    return;
+  }
+  s_prefs.putBool(kPrefsRunwayLabelsKey, s_show_runway_labels);
   s_prefs.end();
 }
 
@@ -96,6 +106,7 @@ void rangeInit() {
       (saved < kRangePresetCount) ? saved : kDefaultRangeIndex;
   s_use_miles = s_prefs.getBool(kPrefsMilesKey, false);
   s_show_runways = s_prefs.getBool(kPrefsRunwaysKey, true);
+  s_show_runway_labels = s_prefs.getBool(kPrefsRunwayLabelsKey, true);
   const uint8_t saved_direction =
       s_prefs.getUChar(kPrefsTopDirectionKey,
                        static_cast<uint8_t>(TopDirection::North));
@@ -125,6 +136,17 @@ float fetchRadiusKm() {
 bool useMiles() { return s_use_miles; }
 
 bool showRunways() { return s_show_runways; }
+
+bool showRunwayLabels() { return s_show_runway_labels; }
+
+void saveAirportOverlay(bool runways, bool labels) {
+  s_show_runways = runways;
+  s_show_runway_labels = labels;
+  saveShowRunways();
+  saveShowRunwayLabels();
+  Serial.printf("Airport overlay: runways=%s labels=%s\n",
+                runways ? "on" : "off", labels ? "on" : "off");
+}
 
 bool showCallsign() { return (s_label_mask & kLabelCallsign) != 0; }
 
@@ -244,9 +266,11 @@ void formatCurrentRing3Label(char* buf, size_t len) {
 void unitsReset() {
   s_use_miles = false;
   s_show_runways = true;
+  s_show_runway_labels = true;
   if (s_prefs.begin(kPrefsNamespace, false)) {
     s_prefs.remove(kPrefsMilesKey);
     s_prefs.remove(kPrefsRunwaysKey);
+    s_prefs.remove(kPrefsRunwayLabelsKey);
     s_prefs.remove(kPrefsTopDirectionKey);
     s_prefs.remove(kPrefsLabelMaskKey);
     s_prefs.end();

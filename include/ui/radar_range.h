@@ -52,6 +52,8 @@ float fetchRadiusKm();
 
 bool useMiles();
 bool showRunways();
+bool showRunwayLabels();
+void saveAirportOverlay(bool runways, bool labels);
 bool showCallsign();
 bool showAircraftType();
 bool showAltitude();

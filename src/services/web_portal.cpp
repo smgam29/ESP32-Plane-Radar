@@ -76,6 +76,18 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <p id="labels-message" class="message" role="status"></p>
 </section>
 <section>
+<h2>Airports</h2>
+<form id="airports-form">
+<div class="checks">
+<label><input id="airport-runways" type="checkbox">Runway layout</label>
+<label><input id="airport-labels" type="checkbox">ICAO labels</label>
+</div>
+<button id="save-airports" type="submit">Save airports</button>
+</form>
+<p id="airports-message" class="message" role="status"></p>
+<small>Runway patterns are available for the bundled major-airport data.</small>
+</section>
+<section>
 <h2>Radar location</h2>
 <form id="location-form">
 <div class="coords">
@@ -108,7 +120,9 @@ document.getElementById('status-lat').textContent=s.lat;document.getElementById(
 lat.value=s.lat;lon.value=s.lon;document.getElementById('orientation').value=s.orientation;
 document.getElementById('label-callsign').checked=s.labelCallsign;
 document.getElementById('label-type').checked=s.labelType;
-document.getElementById('label-altitude').checked=s.labelAltitude
+document.getElementById('label-altitude').checked=s.labelAltitude;
+document.getElementById('airport-runways').checked=s.airportRunways;
+document.getElementById('airport-labels').checked=s.airportLabels
 })}
 loadStatus().catch(()=>document.getElementById('wifi').textContent='Status unavailable');
 document.getElementById('orientation-form').addEventListener('submit',e=>{e.preventDefault();
@@ -116,6 +130,13 @@ const save=document.getElementById('save-orientation'),msg=document.getElementBy
 fetch('/api/settings/orientation',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({orientation:document.getElementById('orientation').value})})
 .then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Orientation was not saved.');showMessage(msg,result.message,true)
 }).catch(e=>showMessage(msg,e.message||'Orientation was not saved.')).finally(()=>save.disabled=false)
+});
+document.getElementById('airports-form').addEventListener('submit',e=>{e.preventDefault();
+const save=document.getElementById('save-airports'),msg=document.getElementById('airports-message');save.disabled=true;showMessage(msg,'Saving...');
+const checked=id=>document.getElementById(id).checked?'1':'0';
+fetch('/api/settings/airports',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({runways:checked('airport-runways'),labels:checked('airport-labels')})})
+.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Airport settings were not saved.');showMessage(msg,result.message,true)
+}).catch(e=>showMessage(msg,e.message||'Airport settings were not saved.')).finally(()=>save.disabled=false)
 });
 document.getElementById('labels-form').addEventListener('submit',e=>{e.preventDefault();
 const save=document.getElementById('save-labels'),msg=document.getElementById('labels-message');save.disabled=true;showMessage(msg,'Saving...');
@@ -253,17 +274,20 @@ void sendUpdateResult(WebServer& server) {
 void sendStatus(WebServer& server) {
   const bool connected = WiFi.status() == WL_CONNECTED;
   const String ip = connected ? WiFi.localIP().toString() : String("Unavailable");
-  char response[384];
+  char response[448];
   snprintf(response, sizeof(response),
            "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\","
            "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\","
-           "\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s}",
+           "\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
+           "\"airportRunways\":%s,\"airportLabels\":%s}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
            services::location::lat(), services::location::lon(),
            ui::radar::topDirectionCode(),
            ui::radar::showCallsign() ? "true" : "false",
            ui::radar::showAircraftType() ? "true" : "false",
-           ui::radar::showAltitude() ? "true" : "false");
+           ui::radar::showAltitude() ? "true" : "false",
+           ui::radar::showRunways() ? "true" : "false",
+           ui::radar::showRunwayLabels() ? "true" : "false");
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json", response);
 }
@@ -346,6 +370,26 @@ void sendLabelsResult(WebServer& server) {
               "{\"ok\":true,\"message\":\"Plane labels saved.\"}");
 }
 
+void sendAirportsResult(WebServer& server) {
+  if (s_update_in_progress) {
+    server.send(409, "application/json",
+                "{\"ok\":false,\"message\":\"Wait for the firmware update to finish.\"}");
+    return;
+  }
+  bool runways = false;
+  bool labels = false;
+  if (!parseBooleanArg(server, "runways", &runways) ||
+      !parseBooleanArg(server, "labels", &labels)) {
+    server.send(400, "application/json",
+                "{\"ok\":false,\"message\":\"Invalid airport settings.\"}");
+    return;
+  }
+  ui::radar::saveAirportOverlay(runways, labels);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json",
+              "{\"ok\":true,\"message\":\"Airport settings saved.\"}");
+}
+
 void sendHome(WiFiManager& wifi_manager) {
   WebServer& server = *wifi_manager.server;
   if (wifi_manager.getConfigPortalActive()) {
@@ -371,6 +415,8 @@ void attach(WiFiManager& wifi_manager) {
                         [manager]() { sendOrientationResult(*manager->server); });
     manager->server->on("/api/settings/labels", HTTP_POST,
                         [manager]() { sendLabelsResult(*manager->server); });
+    manager->server->on("/api/settings/airports", HTTP_POST,
+                        [manager]() { sendAirportsResult(*manager->server); });
     manager->server->on(
         "/api/update", HTTP_POST,
         [manager]() { sendUpdateResult(*manager->server); },

@@ -46,7 +46,7 @@ constexpr float kAircraftTrackLengthScale = 1.5f / 5.0f;
 /** drawWideLine half-width for speed vectors (~2 px total). */
 constexpr float kAircraftTrackLineHalfWidth = 1.0f;
 
-constexpr float kRunwayLineWidthPx = 2.0f;
+constexpr float kRunwayLineWidthPx = 1.0f;
 constexpr float kRunwayLineHalfWidth = kRunwayLineWidthPx * 0.5f;
 constexpr int kRunwayLabelHeightPx = kCardinalLabelHeightPx;
 constexpr int kRunwayLabelGapPx = 3;
@@ -81,13 +81,13 @@ constexpr uint8_t kTagTypeB = 0;
 constexpr uint8_t kTagAltR = 90;
 constexpr uint8_t kTagAltG = 200;
 constexpr uint8_t kTagAltB = 255;
-constexpr uint8_t kRunwayR = 56;
-constexpr uint8_t kRunwayG = 150;
-constexpr uint8_t kRunwayB = 170;
-/** Lighter teal for ICAO labels (vs runway lines). */
+constexpr uint8_t kRunwayR = 45;
+constexpr uint8_t kRunwayG = 190;
+constexpr uint8_t kRunwayB = 95;
+/** Lighter green for ICAO labels (vs runway lines). */
 constexpr uint8_t kRunwayLabelR = 110;
-constexpr uint8_t kRunwayLabelG = 210;
-constexpr uint8_t kRunwayLabelB = 230;
+constexpr uint8_t kRunwayLabelG = 235;
+constexpr uint8_t kRunwayLabelB = 145;
 
 extern uint16_t kColorBackground;
 extern uint16_t kColorGrid;
