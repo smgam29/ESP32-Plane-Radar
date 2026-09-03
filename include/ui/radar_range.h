@@ -22,6 +22,13 @@ struct RangePreset {
   float outer_km;
 };
 
+enum class TopDirection : uint8_t {
+  North = 0,
+  East = 1,
+  South = 2,
+  West = 3,
+};
+
 constexpr float kRing3ToOuterKm = 4.0f / 3.0f;
 
 constexpr RangePreset kRangePresets[] = {
@@ -45,6 +52,15 @@ float fetchRadiusKm();
 
 bool useMiles();
 bool showRunways();
+TopDirection topDirection();
+const char* topDirectionCode();
+/** Save N/E/S/W as the direction shown at the top of the radar. */
+bool saveTopDirection(const char* direction);
+/** Rotate an east/north world offset into screen-right/screen-up axes. */
+void orientOffset(float east, float north, float* screen_right,
+                  float* screen_up);
+/** Convert a true heading to its angle on the oriented display. */
+float orientHeading(float heading_deg);
 /** WiFi portal checkbox: "T" = miles, otherwise km. */
 void saveMilesFromPortal(const char* checkbox_value);
 void saveRunwaysFromPortal(const char* checkbox_value);

@@ -94,8 +94,14 @@ void latLonToScreen(float lat, float lon, int* out_x, int* out_y) {
   float dist_km = 0.0f;
   offsetKmFromCenter(lat, lon, &dx_km, &dy_km, &dist_km);
 
-  *out_x = radar::kCenterX + static_cast<int>(lroundf(dx_km * px_per_km));
-  *out_y = radar::kCenterY - static_cast<int>(lroundf(dy_km * px_per_km));
+  float screen_right_km = 0.0f;
+  float screen_up_km = 0.0f;
+  radar::orientOffset(dx_km, dy_km, &screen_right_km, &screen_up_km);
+
+  *out_x = radar::kCenterX +
+           static_cast<int>(lroundf(screen_right_km * px_per_km));
+  *out_y = radar::kCenterY -
+           static_cast<int>(lroundf(screen_up_km * px_per_km));
 }
 
 int distSqFromCenter(int x, int y) {

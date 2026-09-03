@@ -15,6 +15,7 @@ constexpr char kPrefsNamespace[] = "planeradar";
 constexpr char kPrefsRangeKey[] = "rangeIdx";
 constexpr char kPrefsMilesKey[] = "useMiles";
 constexpr char kPrefsRunwaysKey[] = "showRwys";
+constexpr char kPrefsTopDirectionKey[] = "topDir";
 constexpr uint8_t kDefaultRangeIndex = 1;  // 10 km ring
 constexpr float kKmPerMile = 1.609344f;
 
@@ -22,6 +23,7 @@ Preferences s_prefs;
 uint8_t s_range_index = kDefaultRangeIndex;
 bool s_use_miles = false;
 bool s_show_runways = true;
+TopDirection s_top_direction = TopDirection::North;
 
 void saveRangeIndex() {
   if (!s_prefs.begin(kPrefsNamespace, false)) {
@@ -44,6 +46,15 @@ void saveShowRunways() {
     return;
   }
   s_prefs.putBool(kPrefsRunwaysKey, s_show_runways);
+  s_prefs.end();
+}
+
+void persistTopDirection() {
+  if (!s_prefs.begin(kPrefsNamespace, false)) {
+    return;
+  }
+  s_prefs.putUChar(kPrefsTopDirectionKey,
+                   static_cast<uint8_t>(s_top_direction));
   s_prefs.end();
 }
 
@@ -70,6 +81,12 @@ void rangeInit() {
       (saved < kRangePresetCount) ? saved : kDefaultRangeIndex;
   s_use_miles = s_prefs.getBool(kPrefsMilesKey, false);
   s_show_runways = s_prefs.getBool(kPrefsRunwaysKey, true);
+  const uint8_t saved_direction =
+      s_prefs.getUChar(kPrefsTopDirectionKey,
+                       static_cast<uint8_t>(TopDirection::North));
+  s_top_direction = saved_direction <= static_cast<uint8_t>(TopDirection::West)
+                        ? static_cast<TopDirection>(saved_direction)
+                        : TopDirection::North;
   s_prefs.end();
 }
 
@@ -92,6 +109,79 @@ float fetchRadiusKm() {
 bool useMiles() { return s_use_miles; }
 
 bool showRunways() { return s_show_runways; }
+
+TopDirection topDirection() { return s_top_direction; }
+
+const char* topDirectionCode() {
+  switch (s_top_direction) {
+    case TopDirection::East:
+      return "E";
+    case TopDirection::South:
+      return "S";
+    case TopDirection::West:
+      return "W";
+    default:
+      return "N";
+  }
+}
+
+bool saveTopDirection(const char* direction) {
+  if (direction == nullptr || direction[0] == '\0' || direction[1] != '\0') {
+    return false;
+  }
+  switch (direction[0]) {
+    case 'N':
+    case 'n':
+      s_top_direction = TopDirection::North;
+      break;
+    case 'E':
+    case 'e':
+      s_top_direction = TopDirection::East;
+      break;
+    case 'S':
+    case 's':
+      s_top_direction = TopDirection::South;
+      break;
+    case 'W':
+    case 'w':
+      s_top_direction = TopDirection::West;
+      break;
+    default:
+      return false;
+  }
+  persistTopDirection();
+  Serial.printf("Radar top direction: %s\n", topDirectionCode());
+  return true;
+}
+
+void orientOffset(float east, float north, float* screen_right,
+                  float* screen_up) {
+  switch (s_top_direction) {
+    case TopDirection::East:
+      *screen_right = -north;
+      *screen_up = east;
+      break;
+    case TopDirection::South:
+      *screen_right = -east;
+      *screen_up = -north;
+      break;
+    case TopDirection::West:
+      *screen_right = north;
+      *screen_up = -east;
+      break;
+    default:
+      *screen_right = east;
+      *screen_up = north;
+      break;
+  }
+}
+
+float orientHeading(float heading_deg) {
+  const float oriented =
+      heading_deg - static_cast<float>(static_cast<uint8_t>(s_top_direction)) *
+                        90.0f;
+  return oriented < 0.0f ? oriented + 360.0f : oriented;
+}
 
 void saveMilesFromPortal(const char* checkbox_value) {
   s_use_miles = portalCheckboxChecked(checkbox_value);
@@ -125,8 +215,10 @@ void unitsReset() {
   if (s_prefs.begin(kPrefsNamespace, false)) {
     s_prefs.remove(kPrefsMilesKey);
     s_prefs.remove(kPrefsRunwaysKey);
+    s_prefs.remove(kPrefsTopDirectionKey);
     s_prefs.end();
   }
+  s_top_direction = TopDirection::North;
 }
 
 }  // namespace ui::radar

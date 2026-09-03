@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "services/radar_location.h"
+#include "ui/radar_range.h"
 #include "version.h"
 
 namespace services::web {
@@ -31,7 +32,7 @@ h2{font-size:1.05rem;margin:.1rem 0 1rem}dl{display:grid;grid-template-columns:1
 dt{color:#9ab6c2}dd{margin:0;text-align:right;overflow-wrap:anywhere}nav{margin-top:1rem}
 a{color:#5ee6a8;margin-right:1rem}small{display:block;color:#9ab6c2;margin:.7rem 0}
 button,.button{background:#5ee6a8;border:0;border-radius:.4rem;color:#071421;display:inline-block;font-weight:700;padding:.65rem 1rem;text-decoration:none}
-input{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:block;color:#9ab6c2}
+input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:block;color:#9ab6c2}
 .coords{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}.coords input{width:100%;padding:.5rem}
 .secondary{background:#24485a;color:#eef7f4;margin-right:.5rem}progress{display:none;width:100%;margin-top:1rem}
 .message{min-height:1.4rem}.error{color:#ff9b9b}.success{color:#5ee6a8}
@@ -48,6 +49,18 @@ input{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:blo
 <dt>Latitude</dt><dd id="status-lat">...</dd>
 <dt>Longitude</dt><dd id="status-lon">...</dd>
 </dl>
+</section>
+<section>
+<h2>Radar orientation</h2>
+<form id="orientation-form">
+<label>Top of radar
+<select id="orientation" name="orientation">
+<option value="N">North (N)</option><option value="E">East (E)</option>
+<option value="S">South (S)</option><option value="W">West (W)</option>
+</select></label>
+<button id="save-orientation" type="submit">Save orientation</button>
+</form>
+<p id="orientation-message" class="message" role="status"></p>
 </section>
 <section>
 <h2>Radar location</h2>
@@ -75,20 +88,26 @@ input{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:blo
 <nav><a href="/wifi">Wi-Fi setup</a><a href="/param">Radar settings</a></nav>
 <script>
 const lat=document.getElementById('lat'),lon=document.getElementById('lon'),locMessage=document.getElementById('location-message');
-function showLocationMessage(text,ok=false){locMessage.textContent=text;locMessage.className='message '+(ok?'success':'error')}
+function showMessage(el,text,ok=false){el.textContent=text;el.className='message '+(ok?'success':'error')}
 function loadStatus(){return fetch('/api/status',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>{
 for(const k of ['version','wifi','ip'])document.getElementById(k).textContent=s[k];
 document.getElementById('status-lat').textContent=s.lat;document.getElementById('status-lon').textContent=s.lon;
-lat.value=s.lat;lon.value=s.lon
+lat.value=s.lat;lon.value=s.lon;document.getElementById('orientation').value=s.orientation
 })}
 loadStatus().catch(()=>document.getElementById('wifi').textContent='Status unavailable');
+document.getElementById('orientation-form').addEventListener('submit',e=>{e.preventDefault();
+const save=document.getElementById('save-orientation'),msg=document.getElementById('orientation-message');save.disabled=true;showMessage(msg,'Saving...');
+fetch('/api/settings/orientation',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({orientation:document.getElementById('orientation').value})})
+.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Orientation was not saved.');showMessage(msg,result.message,true)
+}).catch(e=>showMessage(msg,e.message||'Orientation was not saved.')).finally(()=>save.disabled=false)
+});
 document.getElementById('location-form').addEventListener('submit',e=>{e.preventDefault();
-if(!e.target.reportValidity())return;const save=document.getElementById('save-location');save.disabled=true;showLocationMessage('Saving...');
+if(!e.target.reportValidity())return;const save=document.getElementById('save-location');save.disabled=true;showMessage(locMessage,'Saving...');
 fetch('/api/settings/location',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({lat:lat.value,lon:lon.value})})
 .then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Location was not saved.');
 document.getElementById('status-lat').textContent=result.lat;document.getElementById('status-lon').textContent=result.lon;
-lat.value=result.lat;lon.value=result.lon;showLocationMessage(result.message,true)
-}).catch(e=>showLocationMessage(e.message||'Location was not saved.')).finally(()=>save.disabled=false)
+lat.value=result.lat;lon.value=result.lon;showMessage(locMessage,result.message,true)
+}).catch(e=>showMessage(locMessage,e.message||'Location was not saved.')).finally(()=>save.disabled=false)
 });
 const form=document.getElementById('update-form'),file=document.getElementById('firmware'),
 button=document.getElementById('install'),bar=document.getElementById('progress'),message=document.getElementById('message');
@@ -211,14 +230,32 @@ void sendUpdateResult(WebServer& server) {
 void sendStatus(WebServer& server) {
   const bool connected = WiFi.status() == WL_CONNECTED;
   const String ip = connected ? WiFi.localIP().toString() : String("Unavailable");
-  char response[256];
+  char response[288];
   snprintf(response, sizeof(response),
            "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\","
-           "\"lat\":\"%.6f\",\"lon\":\"%.6f\"}",
+           "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\"}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
-           services::location::lat(), services::location::lon());
+           services::location::lat(), services::location::lon(),
+           ui::radar::topDirectionCode());
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json", response);
+}
+
+void sendOrientationResult(WebServer& server) {
+  if (s_update_in_progress) {
+    server.send(409, "application/json",
+                "{\"ok\":false,\"message\":\"Wait for the firmware update to finish.\"}");
+    return;
+  }
+  if (!server.hasArg("orientation") ||
+      !ui::radar::saveTopDirection(server.arg("orientation").c_str())) {
+    server.send(400, "application/json",
+                "{\"ok\":false,\"message\":\"Choose North, East, South, or West.\"}");
+    return;
+  }
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json",
+              "{\"ok\":true,\"message\":\"Orientation saved.\"}");
 }
 
 void sendLocationResult(WebServer& server) {
@@ -265,6 +302,8 @@ void attach(WiFiManager& wifi_manager) {
                         [manager]() { sendStatus(*manager->server); });
     manager->server->on("/api/settings/location", HTTP_POST,
                         [manager]() { sendLocationResult(*manager->server); });
+    manager->server->on("/api/settings/orientation", HTTP_POST,
+                        [manager]() { sendOrientationResult(*manager->server); });
     manager->server->on(
         "/api/update", HTTP_POST,
         [manager]() { sendUpdateResult(*manager->server); },
