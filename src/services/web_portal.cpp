@@ -30,7 +30,7 @@ section{background:#102536;border:1px solid #24485a;border-radius:.8rem;padding:
 h2{font-size:1.05rem;margin:.1rem 0 1rem}dl{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin:0}
 dt{color:#9ab6c2}dd{margin:0;text-align:right;overflow-wrap:anywhere}nav{margin-top:1rem}
 a{color:#5ee6a8;margin-right:1rem}small{display:block;color:#9ab6c2;margin:.7rem 0}
-button{background:#5ee6a8;border:0;border-radius:.4rem;color:#071421;font-weight:700;padding:.65rem 1rem}
+button,.button{background:#5ee6a8;border:0;border-radius:.4rem;color:#071421;display:inline-block;font-weight:700;padding:.65rem 1rem;text-decoration:none}
 input{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:block;color:#9ab6c2}
 .coords{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}.coords input{width:100%;padding:.5rem}
 .secondary{background:#24485a;color:#eef7f4;margin-right:.5rem}progress{display:none;width:100%;margin-top:1rem}
@@ -56,7 +56,7 @@ input{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:blo
 <label>Latitude<input id="lat" name="lat" type="number" min="-90" max="90" step="0.000001" inputmode="decimal" required></label>
 <label>Longitude<input id="lon" name="lon" type="number" min="-180" max="180" step="0.000001" inputmode="decimal" required></label>
 </div>
-<button id="locate" class="secondary" type="button">Use my current location</button>
+<a class="button secondary" href="https://www.latlong.net/my-location-latitude-longitude" target="_blank" rel="noopener noreferrer">Find my coordinates</a>
 <button id="save-location" type="submit">Save location</button>
 </form>
 <p id="location-message" class="message" role="status"></p>
@@ -89,12 +89,6 @@ fetch('/api/settings/location',{method:'POST',headers:{'Content-Type':'applicati
 document.getElementById('status-lat').textContent=result.lat;document.getElementById('status-lon').textContent=result.lon;
 lat.value=result.lat;lon.value=result.lon;showLocationMessage(result.message,true)
 }).catch(e=>showLocationMessage(e.message||'Location was not saved.')).finally(()=>save.disabled=false)
-});
-document.getElementById('locate').addEventListener('click',()=>{
-if(!navigator.geolocation){showLocationMessage('Location is not available in this browser.');return}
-showLocationMessage('Requesting your location...');navigator.geolocation.getCurrentPosition(p=>{
-lat.value=p.coords.latitude.toFixed(6);lon.value=p.coords.longitude.toFixed(6);showLocationMessage('Location filled in. Select Save location to apply it.',true)
-},e=>showLocationMessage(e.message||'Could not get your location.'),{enableHighAccuracy:true,timeout:15000,maximumAge:60000})
 });
 const form=document.getElementById('update-form'),file=document.getElementById('firmware'),
 button=document.getElementById('install'),bar=document.getElementById('progress'),message=document.getElementById('message');
