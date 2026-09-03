@@ -34,6 +34,7 @@ a{color:#5ee6a8;margin-right:1rem}small{display:block;color:#9ab6c2;margin:.7rem
 button,.button{background:#5ee6a8;border:0;border-radius:.4rem;color:#071421;display:inline-block;font-weight:700;padding:.65rem 1rem;text-decoration:none}
 input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:block;color:#9ab6c2}
 .coords{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}.coords input{width:100%;padding:.5rem}
+.checks{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-bottom:.8rem}.checks label{color:#eef7f4}.checks input{margin:0 .3rem 0 0}
 .secondary{background:#24485a;color:#eef7f4;margin-right:.5rem}progress{display:none;width:100%;margin-top:1rem}
 .message{min-height:1.4rem}.error{color:#ff9b9b}.success{color:#5ee6a8}
 </style>
@@ -61,6 +62,18 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <button id="save-orientation" type="submit">Save orientation</button>
 </form>
 <p id="orientation-message" class="message" role="status"></p>
+</section>
+<section>
+<h2>Plane labels</h2>
+<form id="labels-form">
+<div class="checks">
+<label><input id="label-callsign" type="checkbox">Callsign</label>
+<label><input id="label-type" type="checkbox">Aircraft type</label>
+<label><input id="label-altitude" type="checkbox">Altitude</label>
+</div>
+<button id="save-labels" type="submit">Save labels</button>
+</form>
+<p id="labels-message" class="message" role="status"></p>
 </section>
 <section>
 <h2>Radar location</h2>
@@ -92,7 +105,10 @@ function showMessage(el,text,ok=false){el.textContent=text;el.className='message
 function loadStatus(){return fetch('/api/status',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>{
 for(const k of ['version','wifi','ip'])document.getElementById(k).textContent=s[k];
 document.getElementById('status-lat').textContent=s.lat;document.getElementById('status-lon').textContent=s.lon;
-lat.value=s.lat;lon.value=s.lon;document.getElementById('orientation').value=s.orientation
+lat.value=s.lat;lon.value=s.lon;document.getElementById('orientation').value=s.orientation;
+document.getElementById('label-callsign').checked=s.labelCallsign;
+document.getElementById('label-type').checked=s.labelType;
+document.getElementById('label-altitude').checked=s.labelAltitude
 })}
 loadStatus().catch(()=>document.getElementById('wifi').textContent='Status unavailable');
 document.getElementById('orientation-form').addEventListener('submit',e=>{e.preventDefault();
@@ -100,6 +116,13 @@ const save=document.getElementById('save-orientation'),msg=document.getElementBy
 fetch('/api/settings/orientation',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({orientation:document.getElementById('orientation').value})})
 .then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Orientation was not saved.');showMessage(msg,result.message,true)
 }).catch(e=>showMessage(msg,e.message||'Orientation was not saved.')).finally(()=>save.disabled=false)
+});
+document.getElementById('labels-form').addEventListener('submit',e=>{e.preventDefault();
+const save=document.getElementById('save-labels'),msg=document.getElementById('labels-message');save.disabled=true;showMessage(msg,'Saving...');
+const checked=id=>document.getElementById(id).checked?'1':'0';
+fetch('/api/settings/labels',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({callsign:checked('label-callsign'),type:checked('label-type'),altitude:checked('label-altitude')})})
+.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Label settings were not saved.');showMessage(msg,result.message,true)
+}).catch(e=>showMessage(msg,e.message||'Label settings were not saved.')).finally(()=>save.disabled=false)
 });
 document.getElementById('location-form').addEventListener('submit',e=>{e.preventDefault();
 if(!e.target.reportValidity())return;const save=document.getElementById('save-location');save.disabled=true;showMessage(locMessage,'Saving...');
@@ -230,13 +253,17 @@ void sendUpdateResult(WebServer& server) {
 void sendStatus(WebServer& server) {
   const bool connected = WiFi.status() == WL_CONNECTED;
   const String ip = connected ? WiFi.localIP().toString() : String("Unavailable");
-  char response[288];
+  char response[384];
   snprintf(response, sizeof(response),
            "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\","
-           "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\"}",
+           "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\","
+           "\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
            services::location::lat(), services::location::lon(),
-           ui::radar::topDirectionCode());
+           ui::radar::topDirectionCode(),
+           ui::radar::showCallsign() ? "true" : "false",
+           ui::radar::showAircraftType() ? "true" : "false",
+           ui::radar::showAltitude() ? "true" : "false");
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json", response);
 }
@@ -281,6 +308,44 @@ void sendLocationResult(WebServer& server) {
   server.send(200, "application/json", response);
 }
 
+bool parseBooleanArg(WebServer& server, const char* name, bool* value) {
+  if (!server.hasArg(name)) {
+    return false;
+  }
+  const String arg = server.arg(name);
+  if (arg == "1") {
+    *value = true;
+    return true;
+  }
+  if (arg == "0") {
+    *value = false;
+    return true;
+  }
+  return false;
+}
+
+void sendLabelsResult(WebServer& server) {
+  if (s_update_in_progress) {
+    server.send(409, "application/json",
+                "{\"ok\":false,\"message\":\"Wait for the firmware update to finish.\"}");
+    return;
+  }
+  bool callsign = false;
+  bool aircraft_type = false;
+  bool altitude = false;
+  if (!parseBooleanArg(server, "callsign", &callsign) ||
+      !parseBooleanArg(server, "type", &aircraft_type) ||
+      !parseBooleanArg(server, "altitude", &altitude)) {
+    server.send(400, "application/json",
+                "{\"ok\":false,\"message\":\"Invalid label settings.\"}");
+    return;
+  }
+  ui::radar::saveLabelVisibility(callsign, aircraft_type, altitude);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json",
+              "{\"ok\":true,\"message\":\"Plane labels saved.\"}");
+}
+
 void sendHome(WiFiManager& wifi_manager) {
   WebServer& server = *wifi_manager.server;
   if (wifi_manager.getConfigPortalActive()) {
@@ -304,6 +369,8 @@ void attach(WiFiManager& wifi_manager) {
                         [manager]() { sendLocationResult(*manager->server); });
     manager->server->on("/api/settings/orientation", HTTP_POST,
                         [manager]() { sendOrientationResult(*manager->server); });
+    manager->server->on("/api/settings/labels", HTTP_POST,
+                        [manager]() { sendLabelsResult(*manager->server); });
     manager->server->on(
         "/api/update", HTTP_POST,
         [manager]() { sendUpdateResult(*manager->server); },

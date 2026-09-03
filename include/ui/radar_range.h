@@ -52,6 +52,10 @@ float fetchRadiusKm();
 
 bool useMiles();
 bool showRunways();
+bool showCallsign();
+bool showAircraftType();
+bool showAltitude();
+void saveLabelVisibility(bool callsign, bool aircraft_type, bool altitude);
 TopDirection topDirection();
 const char* topDirectionCode();
 /** Save N/E/S/W as the direction shown at the top of the radar. */

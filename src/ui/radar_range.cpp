@@ -16,7 +16,13 @@ constexpr char kPrefsRangeKey[] = "rangeIdx";
 constexpr char kPrefsMilesKey[] = "useMiles";
 constexpr char kPrefsRunwaysKey[] = "showRwys";
 constexpr char kPrefsTopDirectionKey[] = "topDir";
+constexpr char kPrefsLabelMaskKey[] = "labelMask";
 constexpr uint8_t kDefaultRangeIndex = 1;  // 10 km ring
+constexpr uint8_t kLabelCallsign = 1U << 0;
+constexpr uint8_t kLabelAircraftType = 1U << 1;
+constexpr uint8_t kLabelAltitude = 1U << 2;
+constexpr uint8_t kAllLabels =
+    kLabelCallsign | kLabelAircraftType | kLabelAltitude;
 constexpr float kKmPerMile = 1.609344f;
 
 Preferences s_prefs;
@@ -24,6 +30,7 @@ uint8_t s_range_index = kDefaultRangeIndex;
 bool s_use_miles = false;
 bool s_show_runways = true;
 TopDirection s_top_direction = TopDirection::North;
+uint8_t s_label_mask = kAllLabels;
 
 void saveRangeIndex() {
   if (!s_prefs.begin(kPrefsNamespace, false)) {
@@ -58,6 +65,14 @@ void persistTopDirection() {
   s_prefs.end();
 }
 
+void persistLabelMask() {
+  if (!s_prefs.begin(kPrefsNamespace, false)) {
+    return;
+  }
+  s_prefs.putUChar(kPrefsLabelMaskKey, s_label_mask);
+  s_prefs.end();
+}
+
 bool portalCheckboxChecked(const char* value) {
   if (value == nullptr || value[0] == '\0') {
     return false;
@@ -87,6 +102,7 @@ void rangeInit() {
   s_top_direction = saved_direction <= static_cast<uint8_t>(TopDirection::West)
                         ? static_cast<TopDirection>(saved_direction)
                         : TopDirection::North;
+  s_label_mask = s_prefs.getUChar(kPrefsLabelMaskKey, kAllLabels) & kAllLabels;
   s_prefs.end();
 }
 
@@ -109,6 +125,22 @@ float fetchRadiusKm() {
 bool useMiles() { return s_use_miles; }
 
 bool showRunways() { return s_show_runways; }
+
+bool showCallsign() { return (s_label_mask & kLabelCallsign) != 0; }
+
+bool showAircraftType() { return (s_label_mask & kLabelAircraftType) != 0; }
+
+bool showAltitude() { return (s_label_mask & kLabelAltitude) != 0; }
+
+void saveLabelVisibility(bool callsign, bool aircraft_type, bool altitude) {
+  s_label_mask = (callsign ? kLabelCallsign : 0) |
+                 (aircraft_type ? kLabelAircraftType : 0) |
+                 (altitude ? kLabelAltitude : 0);
+  persistLabelMask();
+  Serial.printf("Plane labels: callsign=%s type=%s altitude=%s\n",
+                callsign ? "on" : "off", aircraft_type ? "on" : "off",
+                altitude ? "on" : "off");
+}
 
 TopDirection topDirection() { return s_top_direction; }
 
@@ -216,9 +248,11 @@ void unitsReset() {
     s_prefs.remove(kPrefsMilesKey);
     s_prefs.remove(kPrefsRunwaysKey);
     s_prefs.remove(kPrefsTopDirectionKey);
+    s_prefs.remove(kPrefsLabelMaskKey);
     s_prefs.end();
   }
   s_top_direction = TopDirection::North;
+  s_label_mask = kAllLabels;
 }
 
 }  // namespace ui::radar
