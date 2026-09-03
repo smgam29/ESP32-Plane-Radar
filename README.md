@@ -70,8 +70,8 @@ Preset and miles/km choice persist across reboot (`planeradar` NVS namespace).
 
 ### Runways
 
-- Major airports from OurAirports (`large_airport`); all open runway strips in range (helipads excluded)
-- Teal runway lines with one ICAO label per airport (e.g. `KJFK`); toggle in the Wi‑Fi setup portal
+- Worldwide major airports plus all UK fixed-wing airports from OurAirports; all open runway strips in range (helipads excluded)
+- Thin green runway lines with optional ICAO labels (e.g. `KJFK`); toggle from the local web page
 - Update the embedded list: `python3 scripts/build_large_airports.py`
 
 ### Aircraft

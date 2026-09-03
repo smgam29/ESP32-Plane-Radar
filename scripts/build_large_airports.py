@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build runway dataset from OurAirports (large_airport only)."""
+"""Build runway data for worldwide large airports plus all UK airfields."""
 
 from __future__ import annotations
 
@@ -20,6 +20,14 @@ RUNWAYS_URL = (
     "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/"
     "runways.csv"
 )
+
+# The radar always includes worldwide major airports. Include all fixed-wing
+# airfields in the UK as a compact regional extension, so regional airports
+# such as Southampton are available without embedding every small airfield
+# worldwide. Helipads and closed strips are filtered below.
+EXTRA_COUNTRY_AIRPORT_TYPES = {
+    "GB": {"medium_airport", "small_airport"},
+}
 
 def fetch_csv(url: str) -> list[dict[str, str]]:
     with urllib.request.urlopen(url, timeout=60) as resp:
@@ -65,9 +73,14 @@ def build_dataset() -> tuple[
     airports = fetch_csv(AIRPORTS_URL)
     runways = fetch_csv(RUNWAYS_URL)
 
-    large_idents: dict[str, tuple[int, int]] = {}
+    selected_idents: dict[str, tuple[int, int]] = {}
     for a in airports:
-        if a.get("type") != "large_airport":
+        airport_type = a.get("type") or ""
+        country = a.get("iso_country") or ""
+        include = airport_type == "large_airport" or airport_type in (
+            EXTRA_COUNTRY_AIRPORT_TYPES.get(country, set())
+        )
+        if not include:
             continue
         ident = (a.get("ident") or "").strip()
         if len(ident) != 4:
@@ -76,10 +89,10 @@ def build_dataset() -> tuple[
         lon = coord_e7(a.get("longitude_deg"))
         if lat is None or lon is None:
             continue
-        large_idents[ident] = (lat, lon)
+        selected_idents[ident] = (lat, lon)
 
     airport_rows = sorted(
-        (ident, lat, lon) for ident, (lat, lon) in large_idents.items()
+        (ident, lat, lon) for ident, (lat, lon) in selected_idents.items()
     )
     airport_index = {ident: idx for idx, (ident, _, _) in enumerate(airport_rows)}
 

@@ -85,7 +85,7 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <button id="save-airports" type="submit">Save airports</button>
 </form>
 <p id="airports-message" class="message" role="status"></p>
-<small>Runway patterns are available for the bundled major-airport data.</small>
+<small>Runway patterns cover worldwide major airports and UK fixed-wing airfields.</small>
 </section>
 <section>
 <h2>Radar location</h2>
