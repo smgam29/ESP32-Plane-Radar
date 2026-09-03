@@ -56,11 +56,11 @@ input{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:blo
 <label>Latitude<input id="lat" name="lat" type="number" min="-90" max="90" step="0.000001" inputmode="decimal" required></label>
 <label>Longitude<input id="lon" name="lon" type="number" min="-180" max="180" step="0.000001" inputmode="decimal" required></label>
 </div>
-<a class="button secondary" href="https://www.latlong.net/my-location-latitude-longitude" target="_blank" rel="noopener noreferrer">Find my coordinates</a>
+<a class="button secondary" href="https://www.latlong.net/" target="_blank" rel="noopener noreferrer">Find coordinates on map</a>
 <button id="save-location" type="submit">Save location</button>
 </form>
 <p id="location-message" class="message" role="status"></p>
-<small>New coordinates apply to the next aircraft refresh.</small>
+<small>Search for a place or select a point on the map, then copy its coordinates here. New coordinates apply to the next aircraft refresh.</small>
 </section>
 <section>
 <h2>Firmware</h2>
