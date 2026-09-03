@@ -8,6 +8,7 @@
 
 #include <Preferences.h>
 #include <esp_system.h>
+#include <esp_mac.h>
 #include <esp_wifi.h>
 
 #ifdef WM_MDNS
@@ -70,7 +71,10 @@ void ensurePortalHostname() {
   if (s_portal_hostname[0] != '\0') {
     return;
   }
-  const uint16_t suffix = static_cast<uint16_t>(ESP.getEfuseMac() & 0xffff);
+  uint8_t mac[6] = {};
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  const uint16_t suffix =
+      static_cast<uint16_t>((static_cast<uint16_t>(mac[4]) << 8) | mac[5]);
   snprintf(s_portal_hostname, sizeof(s_portal_hostname), "%s-%04x",
            config::kPortalHostnamePrefix, suffix);
   snprintf(s_portal_host_url, sizeof(s_portal_host_url), "%s.local",
