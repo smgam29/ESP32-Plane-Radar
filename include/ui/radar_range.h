@@ -51,6 +51,8 @@ uint8_t rangeIndex();
 float fetchRadiusKm();
 
 bool useMiles();
+bool sweepEnabled();
+bool saveSweepEnabled(bool enabled);
 bool dimRings();
 bool saveDimRings(bool enabled);
 bool showRunways();

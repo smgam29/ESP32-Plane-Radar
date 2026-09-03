@@ -23,6 +23,14 @@ unsigned long g_wifi_down_since = 0;
 unsigned long g_last_reconnect_ms = 0;
 unsigned long g_last_adsb_fetch_ms = 0;
 
+void pollBackground() {
+  wifiLoop();
+  if (g_radar_visible && WiFi.status() == WL_CONNECTED &&
+      !services::web::updateInProgress()) {
+    ui::radarDisplayAnimate();
+  }
+}
+
 void showRadarIfConnected() {
   if (WiFi.status() != WL_CONNECTED) {
     g_radar_visible = false;
@@ -78,7 +86,7 @@ void setup() {
   }
   services::location::init();
   ui::radar::rangeInit();
-  services::adsb::setPollFn(wifiLoop);
+  services::adsb::setPollFn(pollBackground);
 
   if (wifiSetupConnect()) {
     showRadarIfConnected();
@@ -87,7 +95,7 @@ void setup() {
 
 void loop() {
   handleBootButton();
-  wifiLoop();
+  pollBackground();
 
   if (WiFi.status() != WL_CONNECTED) {
     if (g_radar_visible) {

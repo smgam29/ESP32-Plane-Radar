@@ -78,6 +78,15 @@ c++ -std=c++17 -Iinclude -I.pio/libdeps/supermini/ArduinoJson/src test/aircraft_
 node test/label_picker_test.js
 ```
 
+### Decorative sweep
+
+An optional thin green sweep rotates every five seconds, targeting 10 frames/sec.
+It uses the existing framebuffer, with no extra ADS-B requests. It is drawn behind
+runways, labels and aircraft. Toggle it in Radar appearance; the `planeradar/sweep`
+NVS flag defaults off. Animation pauses during OTA and connection screens; blocking
+network operations may briefly interrupt it. Continuous animation is skipped if
+the existing framebuffer cannot be allocated.
+
 ### Grid
 
 The web page’s **Radar appearance → Dim radar rings by 50%** option blends the

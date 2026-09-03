@@ -16,6 +16,7 @@ constexpr char kPrefsNamespace[] = "planeradar";
 constexpr char kPrefsRangeKey[] = "rangeIdx";
 constexpr char kPrefsMilesKey[] = "useMiles";
 constexpr char kPrefsDimRingsKey[] = "dimRings";
+constexpr char kPrefsSweepKey[] = "sweep";
 constexpr char kPrefsRunwaysKey[] = "showRwys";
 constexpr char kPrefsRunwayLabelsKey[] = "showRwLbl";
 constexpr char kPrefsTopDirectionKey[] = "topDir";
@@ -33,6 +34,7 @@ Preferences s_prefs;
 uint8_t s_range_index = kDefaultRangeIndex;
 bool s_use_miles = false;
 bool s_dim_rings = false;
+bool s_sweep_enabled = false;
 bool s_show_runways = true;
 bool s_show_runway_labels = true;
 TopDirection s_top_direction = TopDirection::North;
@@ -109,6 +111,7 @@ void rangeInit() {
       (saved < kRangePresetCount) ? saved : kDefaultRangeIndex;
   s_use_miles = s_prefs.getBool(kPrefsMilesKey, false);
   s_dim_rings = s_prefs.getBool(kPrefsDimRingsKey, false);
+  s_sweep_enabled = s_prefs.getBool(kPrefsSweepKey, false);
   s_show_runways = s_prefs.getBool(kPrefsRunwaysKey, true);
   s_show_runway_labels = s_prefs.getBool(kPrefsRunwayLabelsKey, true);
   const uint8_t saved_direction =
@@ -140,6 +143,16 @@ float fetchRadiusKm() {
 }
 
 bool useMiles() { return s_use_miles; }
+
+bool sweepEnabled() { return s_sweep_enabled; }
+
+bool saveSweepEnabled(bool enabled) {
+  if (!s_prefs.begin(kPrefsNamespace, false)) return false;
+  const bool saved = s_prefs.putBool(kPrefsSweepKey, enabled) == 1;
+  s_prefs.end();
+  if (saved) s_sweep_enabled = enabled;
+  return saved;
+}
 
 bool dimRings() { return s_dim_rings; }
 
@@ -278,6 +291,7 @@ void formatCurrentRing3Label(char* buf, size_t len) {
 }
 
 void unitsReset() {
+  s_sweep_enabled = false;
   s_use_miles = false;
   s_dim_rings = false;
   s_show_runways = true;
@@ -285,6 +299,7 @@ void unitsReset() {
   if (s_prefs.begin(kPrefsNamespace, false)) {
     s_prefs.remove(kPrefsMilesKey);
     s_prefs.remove(kPrefsDimRingsKey);
+    s_prefs.remove(kPrefsSweepKey);
     s_prefs.remove(kPrefsRunwaysKey);
     s_prefs.remove(kPrefsRunwayLabelsKey);
     s_prefs.remove(kPrefsTopDirectionKey);

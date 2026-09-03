@@ -75,6 +75,12 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <button id="save-appearance" type="submit" disabled>Save appearance</button>
 </form>
 <p id="appearance-message" class="message" role="status"></p>
+<form id="sweep-form">
+<div class="checks"><label><input id="sweep" type="checkbox">Show decorative radar sweep</label></div>
+<button id="save-sweep" type="submit" disabled>Save sweep</button>
+</form>
+<p id="sweep-message" class="message" role="status"></p>
+<small>Thin line, five seconds per rotation. Aircraft updates are independent. Network activity may briefly pause the animation.</small>
 <small>Softens only the rings. Aircraft, labels, runways and crosshairs stay unchanged. Applies on the next radar refresh.</small>
 </section>
 <section>
@@ -162,6 +168,8 @@ document.getElementById('status-lat').textContent=s.lat;document.getElementById(
 lat.value=s.lat;lon.value=s.lon;document.getElementById('orientation').value=s.orientation;
 document.getElementById('dim-rings').checked=s.dimRings;
 document.getElementById('save-appearance').disabled=false;
+document.getElementById('sweep').checked=s.sweep;
+document.getElementById('save-sweep').disabled=false;
 labelBoxes.forEach(b=>b.checked=(s.labelMask&Number(b.value))!==0);labelsLoaded=true;syncLabelLimit();
 document.getElementById('airport-runways').checked=s.airportRunways;
 document.getElementById('airport-labels').checked=s.airportLabels
@@ -192,6 +200,13 @@ const checked=id=>document.getElementById(id).checked?'1':'0';
 fetch('/api/settings/airports',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({runways:checked('airport-runways'),labels:checked('airport-labels')})})
 .then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Airport settings were not saved.');showMessage(msg,result.message,true)
 }).catch(e=>showMessage(msg,e.message||'Airport settings were not saved.')).finally(()=>save.disabled=false)
+});
+document.getElementById('sweep-form').addEventListener('submit',e=>{e.preventDefault();
+const save=document.getElementById('save-sweep'),msg=document.getElementById('sweep-message');
+save.disabled=true;showMessage(msg,'Saving...');
+fetch('/api/settings/sweep',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({enabled:document.getElementById('sweep').checked?'1':'0'})})
+.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Sweep was not saved.');showMessage(msg,result.message,true)
+}).catch(e=>showMessage(msg,e.message||'Sweep was not saved.')).finally(()=>save.disabled=false)
 });
 document.getElementById('appearance-form').addEventListener('submit',e=>{e.preventDefault();
 const save=document.getElementById('save-appearance'),msg=document.getElementById('appearance-message');
@@ -343,7 +358,7 @@ void sendStatus(WebServer& server) {
            "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\",\"hostname\":\"%s\","
            "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\","
            "\"labelMask\":%u,\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
-           "\"airportRunways\":%s,\"airportLabels\":%s,\"dimRings\":%s}",
+           "\"airportRunways\":%s,\"airportLabels\":%s,\"dimRings\":%s,\"sweep\":%s}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
            wifiPortalHostUrl(),
            services::location::lat(), services::location::lon(),
@@ -354,7 +369,8 @@ void sendStatus(WebServer& server) {
            ui::radar::showAltitude() ? "true" : "false",
            ui::radar::showRunways() ? "true" : "false",
            ui::radar::showRunwayLabels() ? "true" : "false",
-           ui::radar::dimRings() ? "true" : "false");
+           ui::radar::dimRings() ? "true" : "false",
+           ui::radar::sweepEnabled() ? "true" : "false");
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json", response);
 }
@@ -507,6 +523,24 @@ void sendAirportLocationResult(WebServer& server) {
   server.send(200, "application/json", response);
 }
 
+void sendSweepResult(WebServer& server) {
+  if (s_update_in_progress) {
+    server.send(409, "application/json", "{\"ok\":false,\"message\":\"Wait for the firmware update to finish.\"}");
+    return;
+  }
+  bool enabled = false;
+  if (!parseBooleanArg(server, "enabled", &enabled)) {
+    server.send(400, "application/json", "{\"ok\":false,\"message\":\"Invalid sweep setting.\"}");
+    return;
+  }
+  if (!ui::radar::saveSweepEnabled(enabled)) {
+    server.send(500, "application/json", "{\"ok\":false,\"message\":\"Could not save sweep.\"}");
+    return;
+  }
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", "{\"ok\":true,\"message\":\"Sweep saved.\"}");
+}
+
 void sendAppearanceResult(WebServer& server) {
   if (s_update_in_progress) {
     server.send(409, "application/json",
@@ -610,6 +644,8 @@ void attach(WiFiManager& wifi_manager) {
                         [manager]() { sendLocationResult(*manager->server); });
     manager->server->on("/api/settings/orientation", HTTP_POST,
                         [manager]() { sendOrientationResult(*manager->server); });
+    manager->server->on("/api/settings/sweep", HTTP_POST,
+                        [manager]() { sendSweepResult(*manager->server); });
     manager->server->on("/api/settings/appearance", HTTP_POST,
                         [manager]() { sendAppearanceResult(*manager->server); });
     manager->server->on("/api/settings/labels", HTTP_POST,

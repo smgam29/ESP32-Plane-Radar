@@ -644,6 +644,17 @@ void drawScaleLabel(int cx, int cy, int outer_radius) {
                                scaleLabelAnchorX(cx, outer_radius), cy);
 }
 
+void drawSweep() {
+  if (!radar::sweepEnabled()) return;
+  // Clockwise, five seconds per rotation. Decorative, not an ADS-B scan.
+  const float angle = (millis() % 5000UL) * (2.0f * 3.14159265f / 5000.0f) -
+                      3.14159265f / 2.0f;
+  const int radius = radar::kGridOuterRadius - 1;
+  const int x = radar::kCenterX + static_cast<int>(lroundf(cosf(angle) * radius));
+  const int y = radar::kCenterY + static_cast<int>(lroundf(sinf(angle) * radius));
+  s_draw->drawLine(radar::kCenterX, radar::kCenterY, x, y, tft.color565(25, 95, 55));
+}
+
 template <typename Gfx>
 void drawStaticGrid(Gfx& gfx) {
   initLabelMetrics();
@@ -657,6 +668,7 @@ void drawStaticGrid(Gfx& gfx) {
   drawRings(cx, cy, grid_r);
   drawCrosshairs(cx, cy, grid_r, radar::kColorGrid);
   initPalette();
+  drawSweep();
   runway::drawLargeAirportRunways(gfx);
   drawCenterDot(cx, cy);
   drawCardinalLabels();
@@ -691,6 +703,18 @@ void renderFrame() {
 }
 
 }  // namespace
+
+void radarDisplayAnimate() {
+  static unsigned long last_frame = 0;
+  static bool was_enabled = false;
+  const bool enabled = radar::sweepEnabled();
+  if (!s_frame_ready || (!enabled && !was_enabled)) return;
+  const unsigned long now = millis();
+  if (enabled && now - last_frame < 100UL) return;
+  last_frame = now;
+  was_enabled = enabled;
+  renderFrame();  // Also clears the final sweep immediately when disabled.
+}
 
 void radarDisplayDraw() {
   initPalette();

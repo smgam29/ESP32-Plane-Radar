@@ -62,4 +62,12 @@ vm.runInNewContext(script, {
     assert.equal(element('save-appearance').disabled, false);
   }
   console.log('Label picker UI tests passed');
+  for (const enabled of [true, false]) {
+    element('sweep').checked = enabled;
+    element('sweep-form').listeners.submit({preventDefault() {}});
+    await new Promise(setImmediate);
+    assert.equal(writes[writes.length - 1], 'enabled=' + (enabled ? '1' : '0'));
+    assert.equal(element('save-sweep').disabled, false);
+  }
+  console.log('Sweep toggle UI tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });
