@@ -223,6 +223,14 @@ pio device monitor
 
 ### Firmware images
 
+**Coming from the original firmware?** Use the `Plane-Radar-Upgrade-<version>.zip`
+tester package and its included two-page A4 guide. It contains Mac/Windows
+launchers, a guarded USB migration helper, and split firmware images. The helper
+backs up all flash, verifies the known stock layout, leaves NVS untouched, and
+checks it byte-for-byte afterwards. The first migration requires USB; later
+updates use the local web page. Never use a merged/factory image if you want to
+preserve settings. See [upgrade package design and validation](docs/upgrade-package.md).
+
 Build the application image used by the local OTA page:
 
 ```bash

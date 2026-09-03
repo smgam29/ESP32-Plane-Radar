@@ -65,6 +65,19 @@ jobs:
             --build-dir .pio/build/supermini \
             --output-dir dist
 
+      - name: Build first-upgrade package and A4 guide
+        run: |
+          pip install reportlab==4.4.9
+          python3 -m unittest discover -s test -p 'test_upgrade_installer.py'
+          python3 scripts/build_upgrade_guide.py \
+            --version "${VERSION}" \
+            --output dist/Plane-Radar-Upgrade-Guide-A4.pdf
+          python3 scripts/build_upgrade_package.py \
+            --version "${VERSION}" \
+            --build-dir .pio/build/supermini \
+            --guide dist/Plane-Radar-Upgrade-Guide-A4.pdf \
+            --output-dir dist
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
