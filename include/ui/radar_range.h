@@ -57,7 +57,9 @@ void saveAirportOverlay(bool runways, bool labels);
 bool showCallsign();
 bool showAircraftType();
 bool showAltitude();
-void saveLabelVisibility(bool callsign, bool aircraft_type, bool altitude);
+uint16_t labelMask();
+/** Reject unknown flags and selections exceeding three labels. */
+bool saveLabelMask(uint16_t mask);
 TopDirection topDirection();
 const char* topDirectionCode();
 /** Save N/E/S/W as the direction shown at the top of the radar. */

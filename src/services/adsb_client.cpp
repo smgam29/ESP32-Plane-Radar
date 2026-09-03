@@ -8,6 +8,8 @@
 #include <cstring>
 
 #include "config.h"
+#include "services/aircraft_label_format.h"
+#include "ui/radar_range.h"
 
 namespace services::adsb {
 
@@ -150,53 +152,6 @@ bool isOnGround(const JsonObject& plane) {
   return strcmp(plane["alt_baro"].as<const char*>(), "ground") == 0;
 }
 
-void copyJsonStringTrimmed(const JsonObject& obj, const char* key, char* out,
-                           size_t out_len) {
-  out[0] = '\0';
-  if (out_len == 0 || !obj[key].is<const char*>()) {
-    return;
-  }
-  const char* s = obj[key].as<const char*>();
-  size_t n = strnlen(s, out_len - 1);
-  while (n > 0 && s[n - 1] == ' ') {
-    --n;
-  }
-  memcpy(out, s, n);
-  out[n] = '\0';
-}
-
-void formatAltitudeTag(const JsonObject& plane, char* out, size_t out_len) {
-  out[0] = '\0';
-  if (out_len == 0) {
-    return;
-  }
-
-  if (plane["alt_baro"].is<const char*>()) {
-    const char* s = plane["alt_baro"].as<const char*>();
-    if (strcmp(s, "ground") == 0) {
-      strncpy(out, "GND", out_len - 1);
-      out[out_len - 1] = '\0';
-      return;
-    }
-  }
-
-  float alt = 0.0f;
-  if (readJsonFloat(plane, "alt_baro", &alt) ||
-      readJsonFloat(plane, "alt_geom", &alt)) {
-    snprintf(out, out_len, "%d ft", static_cast<int>(lroundf(alt)));
-  }
-}
-
-void fillTagFields(Aircraft* ac, const JsonObject& plane) {
-  copyJsonStringTrimmed(plane, "flight", ac->callsign, sizeof(ac->callsign));
-  if (ac->callsign[0] == '\0') {
-    copyJsonStringTrimmed(plane, "hex", ac->callsign, sizeof(ac->callsign));
-  }
-
-  copyJsonStringTrimmed(plane, "t", ac->type, sizeof(ac->type));
-  formatAltitudeTag(plane, ac->alt, sizeof(ac->alt));
-}
-
 }  // namespace
 
 void setPollFn(PollFn fn) { s_poll_fn = fn; }
@@ -271,7 +226,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     s_aircraft[n].nose_deg = pickNoseHeading(plane);
     s_aircraft[n].track_deg = pickTrackHeading(plane);
     s_aircraft[n].gs_knots = pickGroundSpeed(plane);
-    fillTagFields(&s_aircraft[n], plane);
+    formatAircraftLabels(plane, ui::radar::labelMask(), s_aircraft[n].labels);
     ++n;
   }
 

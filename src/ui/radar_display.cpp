@@ -393,24 +393,8 @@ void applyTagStyle() {
 int measureTagBlockWidth(const services::adsb::Aircraft& plane) {
   applyTagStyle();
   int max_w = 0;
-  if (radar::showCallsign() && plane.callsign[0] != '\0') {
-    const int w = s_draw->textWidth(plane.callsign);
-    if (w > max_w) {
-      max_w = w;
-    }
-  }
-  if (radar::showAircraftType() && plane.type[0] != '\0') {
-    const int w = s_draw->textWidth(plane.type);
-    if (w > max_w) {
-      max_w = w;
-    }
-  }
-  if (radar::showAltitude() && plane.alt[0] != '\0') {
-    const int w = s_draw->textWidth(plane.alt);
-    if (w > max_w) {
-      max_w = w;
-    }
-  }
+  for (uint8_t i = 0; i < plane.labels.count; ++i)
+    max_w = std::max(max_w, static_cast<int>(s_draw->textWidth(plane.labels.lines[i].text)));
   return max_w;
 }
 
@@ -420,10 +404,7 @@ void drawAircraftTag(int x, int y, const services::adsb::Aircraft& plane) {
 
   const int line_h = s_draw->fontHeight();
   const int block_w = measureTagBlockWidth(plane);
-  const int line_count =
-      (radar::showCallsign() && plane.callsign[0] != '\0' ? 1 : 0) +
-      (radar::showAircraftType() && plane.type[0] != '\0' ? 1 : 0) +
-      (radar::showAltitude() && plane.alt[0] != '\0' ? 1 : 0);
+  const int line_count = plane.labels.count;
   if (line_count == 0) {
     return;
   }
@@ -446,21 +427,15 @@ void drawAircraftTag(int x, int y, const services::adsb::Aircraft& plane) {
   }
   ly = std::max(1, std::min(ly, radar::kSize - block_h - 1));
 
-  if (radar::showCallsign() && plane.callsign[0] != '\0') {
-    s_draw->setTextColor(radar::kColorLabel, radar::kColorBackground);
-    s_draw->drawString(plane.callsign, anchor_x, ly);
+  for (uint8_t i = 0; i < plane.labels.count; ++i) {
+    const auto& line = plane.labels.lines[i];
+    uint16_t color = radar::kColorLabel;
+    if (line.kind == services::adsb::Label::AircraftType) color = radar::kColorTagType;
+    if (line.kind == services::adsb::Label::Altitude) color = radar::kColorTagAltitude;
+    if (plane.labels.emergency) color = 0xFA00;  // Bright orange-red, RGB565.
+    s_draw->setTextColor(color, radar::kColorBackground);
+    s_draw->drawString(line.text, anchor_x, ly);
     ly += line_h;
-  }
-
-  if (radar::showAircraftType() && plane.type[0] != '\0') {
-    s_draw->setTextColor(radar::kColorTagType, radar::kColorBackground);
-    s_draw->drawString(plane.type, anchor_x, ly);
-    ly += line_h;
-  }
-
-  if (radar::showAltitude() && plane.alt[0] != '\0') {
-    s_draw->setTextColor(radar::kColorTagAltitude, radar::kColorBackground);
-    s_draw->drawString(plane.alt, anchor_x, ly);
   }
 }
 
@@ -554,9 +529,9 @@ void drawAircraft() {
     const int y = items[d].y;
     drawSpeedVector(x, y, radar::orientHeading(planes[i].nose_deg),
                     radar::orientHeading(planes[i].track_deg),
-                    planes[i].gs_knots, radar::kColorTrackVector);
+                    planes[i].gs_knots, planes[i].labels.emergency ? 0xFA00 : radar::kColorTrackVector);
     drawHeadingTriangle(x, y, radar::orientHeading(planes[i].nose_deg),
-                        radar::kColorAircraft);
+                        planes[i].labels.emergency ? 0xFA00 : radar::kColorAircraft);
   }
   for (size_t d = 0; d < draw_count; ++d) {
     const size_t i = items[d].index;

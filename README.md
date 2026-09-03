@@ -49,6 +49,35 @@ After a reset, the device reboots and shows the setup screen immediately (no “
 
 ## Radar display
 
+### Aircraft labels
+
+The local web page offers callsign, aircraft type, altitude, registration,
+ground speed, climb/descent rate, squawk, ADS-B category, navigation modes,
+and a military marker. Select zero to three; both the page and API enforce
+the limit. Missing data is omitted. Choices apply on the next aircraft refresh.
+Existing callsign/type/altitude preferences survive the upgrade; new selections
+are saved as a 16-bit `labelsV2` value in the existing `planeradar` NVS namespace.
+
+Speed uses knots and vertical rate uses signed ft/min. Categories display their
+ADS-B code (e.g. `CAT A3`). Navigation flags are AP, ALT, LNAV, VNAV, APP and TCAS;
+`+` indicates further flags could not fit. `MIL` appears only for aircraft flagged
+as military in the source database; absence is not proof of civilian status.
+The [compatible API field reference](https://www.adsbexchange.com/version-2-api/)
+describes these optional fields.
+
+Reported emergency/priority states (or squawks 7500/7600/7700) colour the aircraft
+icon, vector and selected labels orange-red. This does not consume a label slot,
+and works with all labels hidden. No data-quality label or additional API polling
+is added. Only three bounded strings per aircraft are kept in RAM.
+
+Host-side formatting and selection tests can be run with:
+
+```sh
+c++ -std=c++17 -Iinclude -I.pio/libdeps/supermini/ArduinoJson/src test/aircraft_labels_test.cpp src/services/aircraft_label_format.cpp -o /tmp/plane-radar-labels-test
+/tmp/plane-radar-labels-test
+node test/label_picker_test.js
+```
+
 ### Grid
 
 - Dark blue background, subdued green rings and crosshairs

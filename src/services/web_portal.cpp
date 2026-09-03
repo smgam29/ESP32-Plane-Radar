@@ -13,6 +13,7 @@
 
 #include "data/large_airports.h"
 #include "services/radar_location.h"
+#include "services/aircraft_labels.h"
 #include "services/wifi_setup.h"
 #include "ui/radar_range.h"
 #include "version.h"
@@ -71,13 +72,22 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <h2>Plane labels</h2>
 <form id="labels-form">
 <div class="checks">
-<label><input id="label-callsign" type="checkbox">Callsign</label>
-<label><input id="label-type" type="checkbox">Aircraft type</label>
-<label><input id="label-altitude" type="checkbox">Altitude</label>
+<label><input id="label-0" class="plane-label" type="checkbox" value="1">Callsign</label>
+<label><input id="label-1" class="plane-label" type="checkbox" value="2">Aircraft type</label>
+<label><input id="label-2" class="plane-label" type="checkbox" value="4">Altitude</label>
+<label><input id="label-3" class="plane-label" type="checkbox" value="8">Registration</label>
+<label><input id="label-4" class="plane-label" type="checkbox" value="16">Ground speed</label>
+<label><input id="label-5" class="plane-label" type="checkbox" value="32">Climb/descent rate</label>
+<label><input id="label-6" class="plane-label" type="checkbox" value="64">Squawk</label>
+<label><input id="label-7" class="plane-label" type="checkbox" value="128">Aircraft category</label>
+<label><input id="label-8" class="plane-label" type="checkbox" value="256">Navigation modes</label>
+<label><input id="label-9" class="plane-label" type="checkbox" value="512">Military marker</label>
 </div>
-<button id="save-labels" type="submit">Save labels</button>
+<p id="label-count" role="status">Choose up to 3 labels.</p>
+<button id="save-labels" type="submit" disabled>Save labels</button>
 </form>
 <p id="labels-message" class="message" role="status"></p>
+<small>Choose up to three; unavailable fields are omitted. Changes apply on the next aircraft refresh. Speed is in knots; vertical rate is in ft/min. Category uses its ADS-B code. Navigation modes use AP, ALT, LNAV, VNAV, APP and TCAS (+ means more). MIL appears only when flagged. Reported emergencies turn the icon and labels orange-red, independent of these choices.</small>
 </section>
 <section>
 <h2>Airports</h2>
@@ -126,14 +136,22 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <script>
 const lat=document.getElementById('lat'),lon=document.getElementById('lon'),locMessage=document.getElementById('location-message');
 const airportIcao=document.getElementById('airport-icao'),airportOptions=document.getElementById('airport-options');
+const labelBoxes=[...document.querySelectorAll('.plane-label')];
+let labelsLoaded=false;
+function syncLabelLimit(){
+const count=labelBoxes.filter(b=>b.checked).length;
+labelBoxes.forEach(b=>b.disabled=!labelsLoaded||(!b.checked&&count>=3));
+document.getElementById('label-count').textContent=count+'/3 labels selected'+(count>=3?' — deselect one to choose another.':'.');
+document.getElementById('save-labels').disabled=!labelsLoaded;
+}
+labelBoxes.forEach(b=>b.addEventListener('change',syncLabelLimit));
+syncLabelLimit();
 function showMessage(el,text,ok=false){el.textContent=text;el.className='message '+(ok?'success':'error')}
 function loadStatus(){return fetch('/api/status',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>{
 for(const k of ['version','wifi','ip','hostname'])document.getElementById(k).textContent=s[k];
 document.getElementById('status-lat').textContent=s.lat;document.getElementById('status-lon').textContent=s.lon;
 lat.value=s.lat;lon.value=s.lon;document.getElementById('orientation').value=s.orientation;
-document.getElementById('label-callsign').checked=s.labelCallsign;
-document.getElementById('label-type').checked=s.labelType;
-document.getElementById('label-altitude').checked=s.labelAltitude;
+labelBoxes.forEach(b=>b.checked=(s.labelMask&Number(b.value))!==0);labelsLoaded=true;syncLabelLimit();
 document.getElementById('airport-runways').checked=s.airportRunways;
 document.getElementById('airport-labels').checked=s.airportLabels
 })}
@@ -165,11 +183,13 @@ fetch('/api/settings/airports',{method:'POST',headers:{'Content-Type':'applicati
 }).catch(e=>showMessage(msg,e.message||'Airport settings were not saved.')).finally(()=>save.disabled=false)
 });
 document.getElementById('labels-form').addEventListener('submit',e=>{e.preventDefault();
-const save=document.getElementById('save-labels'),msg=document.getElementById('labels-message');save.disabled=true;showMessage(msg,'Saving...');
-const checked=id=>document.getElementById(id).checked?'1':'0';
-fetch('/api/settings/labels',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({callsign:checked('label-callsign'),type:checked('label-type'),altitude:checked('label-altitude')})})
-.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Label settings were not saved.');showMessage(msg,result.message,true)
-}).catch(e=>showMessage(msg,e.message||'Label settings were not saved.')).finally(()=>save.disabled=false)
+const save=document.getElementById('save-labels'),msg=document.getElementById('labels-message');
+if(!labelsLoaded||labelBoxes.filter(b=>b.checked).length>3){showMessage(msg,'Choose at most three labels.');return}
+const mask=labelBoxes.reduce((m,b)=>b.checked?m|Number(b.value):m,0);
+save.disabled=true;showMessage(msg,'Saving...');
+fetch('/api/settings/labels',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({mask:String(mask)})})
+.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Labels were not saved.');showMessage(msg,result.message,true)
+}).catch(e=>showMessage(msg,e.message||'Labels were not saved.')).finally(()=>save.disabled=false)
 });
 document.getElementById('location-form').addEventListener('submit',e=>{e.preventDefault();
 if(!e.target.reportValidity())return;const save=document.getElementById('save-location');save.disabled=true;showMessage(locMessage,'Saving...');
@@ -304,12 +324,13 @@ void sendStatus(WebServer& server) {
   snprintf(response, sizeof(response),
            "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\",\"hostname\":\"%s\","
            "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\","
-           "\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
+           "\"labelMask\":%u,\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
            "\"airportRunways\":%s,\"airportLabels\":%s}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
            wifiPortalHostUrl(),
            services::location::lat(), services::location::lon(),
            ui::radar::topDirectionCode(),
+           static_cast<unsigned>(ui::radar::labelMask()),
            ui::radar::showCallsign() ? "true" : "false",
            ui::radar::showAircraftType() ? "true" : "false",
            ui::radar::showAltitude() ? "true" : "false",
@@ -473,17 +494,33 @@ void sendLabelsResult(WebServer& server) {
                 "{\"ok\":false,\"message\":\"Wait for the firmware update to finish.\"}");
     return;
   }
-  bool callsign = false;
-  bool aircraft_type = false;
-  bool altitude = false;
-  if (!parseBooleanArg(server, "callsign", &callsign) ||
-      !parseBooleanArg(server, "type", &aircraft_type) ||
-      !parseBooleanArg(server, "altitude", &altitude)) {
+  uint16_t mask = 0;
+  bool valid = true;
+  if (server.hasArg("mask")) {
+    const String arg = server.arg("mask");
+    valid = !arg.isEmpty() && arg.length() <= 4;
+    for (size_t i = 0; valid && i < arg.length(); ++i) {
+      if (arg[i] < '0' || arg[i] > '9') valid = false;
+      else mask = mask * 10 + (arg[i] - '0');
+    }
+  } else {
+    // Preserve compatibility with an already-open legacy web page.
+    bool callsign = false, type = false, altitude = false;
+    valid = parseBooleanArg(server, "callsign", &callsign) &&
+            parseBooleanArg(server, "type", &type) &&
+            parseBooleanArg(server, "altitude", &altitude);
+    mask = (callsign ? 1 : 0) | (type ? 2 : 0) | (altitude ? 4 : 0);
+  }
+  if (!valid || !services::adsb::validLabelMask(mask)) {
     server.send(400, "application/json",
-                "{\"ok\":false,\"message\":\"Invalid label settings.\"}");
+                "{\"ok\":false,\"message\":\"Choose at most three valid labels.\"}");
     return;
   }
-  ui::radar::saveLabelVisibility(callsign, aircraft_type, altitude);
+  if (!ui::radar::saveLabelMask(mask)) {
+    server.send(500, "application/json",
+                "{\"ok\":false,\"message\":\"Could not save labels. Please retry.\"}");
+    return;
+  }
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json",
               "{\"ok\":true,\"message\":\"Plane labels saved.\"}");

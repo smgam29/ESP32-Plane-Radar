@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include "services/aircraft_labels.h"
 
 namespace services::adsb {
 
@@ -10,9 +11,7 @@ struct Aircraft {
   float nose_deg;
   float track_deg;
   float gs_knots;
-  char callsign[9];
-  char type[5];
-  char alt[12];
+  AircraftLabels labels;
 };
 
 constexpr size_t kMaxAircraft = 64;
