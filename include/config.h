@@ -9,8 +9,9 @@ namespace config {
 // --- Wi-Fi portal ---
 constexpr char kPortalApName[] = "PlaneRadar-Setup";
 constexpr char kPortalIp[] = "192.168.4.1";
-/** Prefix for a per-device mDNS host; browser: http://plane-radar-xxxx.local */
-constexpr char kPortalHostnamePrefix[] = "plane-radar";
+/** Shared mDNS address; use individual IP addresses for multiple radars. */
+constexpr char kPortalHostname[] = "plane-radar";
+constexpr char kPortalHostUrl[] = "plane-radar.local";
 
 /** Per-attempt STA connect wait (ms); retried kWifiConnectAttempts times. */
 constexpr unsigned long kWifiConnectAttemptMs = 15000;

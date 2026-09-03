@@ -8,7 +8,6 @@
 
 #include <Preferences.h>
 #include <esp_system.h>
-#include <esp_mac.h>
 #include <esp_wifi.h>
 
 #ifdef WM_MDNS
@@ -64,22 +63,6 @@ constexpr char kPrefsForcePortalKey[] = "portal";
 bool s_force_config_portal = false;
 WiFiManager s_wm;
 bool s_wm_configured = false;
-char s_portal_hostname[sizeof(config::kPortalHostnamePrefix) + 5] = {};
-char s_portal_host_url[sizeof(s_portal_hostname) + sizeof(".local")] = {};
-
-void ensurePortalHostname() {
-  if (s_portal_hostname[0] != '\0') {
-    return;
-  }
-  uint8_t mac[6] = {};
-  esp_read_mac(mac, ESP_MAC_WIFI_STA);
-  const uint16_t suffix =
-      static_cast<uint16_t>((static_cast<uint16_t>(mac[4]) << 8) | mac[5]);
-  snprintf(s_portal_hostname, sizeof(s_portal_hostname), "%s-%04x",
-           config::kPortalHostnamePrefix, suffix);
-  snprintf(s_portal_host_url, sizeof(s_portal_host_url), "%s.local",
-           s_portal_hostname);
-}
 
 void ensureWifiManager();
 void startLanWebPortal();
@@ -214,14 +197,13 @@ void resetWifiCredentials() {
 }
 
 void onConfigPortalApStarted(WiFiManager*) {
-  ensurePortalHostname();
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
-  statusScreenPortal(s_portal_host_url);
+  statusScreenPortal(config::kPortalHostUrl);
 #ifdef WM_MDNS
-  if (MDNS.begin(s_portal_hostname)) {
+  if (MDNS.begin(config::kPortalHostname)) {
     MDNS.addService("http", "tcp", 80);
     Serial.printf("Setup portal: http://%s.local (or http://%s)\n",
-                  s_portal_hostname, config::kPortalIp);
+                  config::kPortalHostname, config::kPortalIp);
   } else {
     Serial.printf("Setup portal: http://%s (mDNS unavailable)\n", config::kPortalIp);
   }
@@ -242,8 +224,7 @@ void ensureWifiManager() {
   s_wm.setConfigPortalTimeout(config::kWifiPortalTimeoutSec);
   s_wm.setAPStaticIPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1),
                            IPAddress(255, 255, 255, 0));
-  ensurePortalHostname();
-  s_wm.setHostname(s_portal_hostname);
+  s_wm.setHostname(config::kPortalHostname);
   s_wm.setAPCallback(onConfigPortalApStarted);
   services::web::attach(s_wm);
   attachPortalParams(s_wm);
@@ -260,13 +241,13 @@ void startLanWebPortal() {
   s_wm.setConfigPortalBlocking(false);
 #ifdef WM_MDNS
   MDNS.end();
-  if (MDNS.begin(s_portal_hostname)) {
+  if (MDNS.begin(config::kPortalHostname)) {
     MDNS.addService("http", "tcp", 80);
   }
 #endif
   s_wm.startWebPortal();
   Serial.printf("LAN config: http://%s.local or http://%s\n",
-                s_portal_hostname, WiFi.localIP().toString().c_str());
+                config::kPortalHostname, WiFi.localIP().toString().c_str());
 }
 
 void stopLanWebPortal() {
@@ -375,7 +356,7 @@ bool openConfigPortal() {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   delay(50);
-  statusScreenPortal(s_portal_host_url);
+  statusScreenPortal(config::kPortalHostUrl);
   s_wm.setConfigPortalBlocking(false);
   s_wm.startConfigPortal(config::kPortalApName);
   while (s_wm.getConfigPortalActive()) {
@@ -391,13 +372,11 @@ bool openConfigPortal() {
 }  // namespace
 
 const char* wifiPortalHostname() {
-  ensurePortalHostname();
-  return s_portal_hostname;
+  return config::kPortalHostname;
 }
 
 const char* wifiPortalHostUrl() {
-  ensurePortalHostname();
-  return s_portal_host_url;
+  return config::kPortalHostUrl;
 }
 
 bool wifiShowsSetupScreenOnBoot() {

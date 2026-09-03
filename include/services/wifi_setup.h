@@ -10,9 +10,9 @@ bool wifiReconnect();
 /** Keeps the LAN config portal alive; call every loop() iteration. */
 void wifiLoop();
 bool wifiBootButtonPressed();
-/** Stable per-device mDNS hostname, derived from the last four Wi-Fi MAC digits. */
+/** Configured mDNS hostname. */
 const char* wifiPortalHostname();
-/** Stable per-device mDNS hostname including the .local suffix. */
+/** Configured mDNS hostname including the .local suffix. */
 const char* wifiPortalHostUrl();
 /** GPIO + interrupt setup; call once early in setup(). */
 void bootButtonInit();
