@@ -83,9 +83,25 @@ node test/label_picker_test.js
 An optional thin green sweep rotates every five seconds, targeting 10 frames/sec.
 It uses the existing framebuffer, with no extra ADS-B requests. It is drawn behind
 runways, labels and aircraft. Toggle it in Radar appearance; the `planeradar/sweep`
-NVS flag defaults off. Animation pauses during OTA and connection screens; blocking
-network operations may briefly interrupt it. Continuous animation is skipped if
+NVS flag defaults off. Animation pauses during OTA and connection screens. ADS-B
+HTTPS runs in a separate FreeRTOS task so network waits do not block animation.
+Continuous animation is skipped if
 the existing framebuffer cannot be allocated.
+
+### Background aircraft fetching
+
+Only one request is queued or active. The worker receives a snapshot of location,
+radius and label settings, and owns a separate bounded aircraft buffer. The main
+loop copies a completed snapshot before acknowledging it; the worker never renders
+or handles web/NVS settings. Responses for changed settings are discarded, and
+failed fetches preserve the current display. Poll frequency remains three seconds.
+The worker uses an 8 KB stack plus a second 64-aircraft buffer. Responses above
+64 KB are rejected and JSON parsing retains only the fields used by the firmware.
+
+OTA waits up to 12 seconds for any pending fetch to finish before writing flash;
+if it cannot drain safely, the upload fails with a retry message. Main-loop status
+includes update counts, heap/worker stack headroom and sweep frame timing for
+diagnostics. A maximum sweep gap includes intentional pauses such as OTA.
 
 ### Grid
 

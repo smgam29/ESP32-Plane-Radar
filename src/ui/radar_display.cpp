@@ -33,6 +33,8 @@ uint16_t kColorRunwayLabel = 0x7DFF;
 
 namespace {
 
+uint32_t s_sweep_frames = 0;
+uint32_t s_sweep_max_gap_ms = 0;
 bool s_label_metrics_ready = false;
 bool s_cardinal_use_vlw = false;
 bool s_scale_use_vlw = false;
@@ -711,10 +713,17 @@ void radarDisplayAnimate() {
   if (!s_frame_ready || (!enabled && !was_enabled)) return;
   const unsigned long now = millis();
   if (enabled && now - last_frame < 100UL) return;
+  if (enabled && was_enabled) {
+    s_sweep_max_gap_ms = std::max(s_sweep_max_gap_ms, static_cast<uint32_t>(now - last_frame));
+  }
+  if (enabled) ++s_sweep_frames;
   last_frame = now;
   was_enabled = enabled;
   renderFrame();  // Also clears the final sweep immediately when disabled.
 }
+
+uint32_t sweepFrameCount() { return s_sweep_frames; }
+uint32_t sweepMaxGapMs() { return s_sweep_max_gap_ms; }
 
 void radarDisplayDraw() {
   initPalette();

@@ -1,12 +1,24 @@
 // Host test: c++ -std=c++17 -Iinclude -I.pio/libdeps/supermini/ArduinoJson/src
 //   test/aircraft_labels_test.cpp src/services/aircraft_label_format.cpp -o /tmp/labels-test
 #include "services/aircraft_label_format.h"
+#include "services/adsb_client.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>
 
 using namespace services::adsb;
 int main() {
+  const Query query{50.9, -1.0, 25.0f, 7};
+  assert(sameQuery(query, query));
+  auto changed = query;
+  changed.lat += 0.01;
+  assert(!sameQuery(query, changed));
+  changed = query; changed.lon += 0.01;
+  assert(!sameQuery(query, changed));
+  changed = query; changed.radius_km = 10;
+  assert(!sameQuery(query, changed));
+  changed = query; changed.labels = 8;
+  assert(!sameQuery(query, changed));
   for (unsigned mask = 0; mask <= 65535; ++mask) {
     const bool expected = mask <= kAllLabelMask && __builtin_popcount(mask) <= 3;
     assert(validLabelMask(mask) == expected);

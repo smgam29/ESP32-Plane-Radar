@@ -14,6 +14,8 @@
 #include "data/large_airports.h"
 #include "services/radar_location.h"
 #include "services/aircraft_labels.h"
+#include "services/adsb_client.h"
+#include "ui/radar_display.h"
 #include "services/wifi_setup.h"
 #include "ui/radar_range.h"
 #include "version.h"
@@ -80,7 +82,7 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <button id="save-sweep" type="submit" disabled>Save sweep</button>
 </form>
 <p id="sweep-message" class="message" role="status"></p>
-<small>Thin line, five seconds per rotation. Aircraft updates are independent. Network activity may briefly pause the animation.</small>
+<small>Thin line, five seconds per rotation. Aircraft updates are independent. Network requests run separately from the animation.</small>
 <small>Softens only the rings. Aircraft, labels, runways and crosshairs stay unchanged. Applies on the next radar refresh.</small>
 </section>
 <section>
@@ -282,6 +284,10 @@ void handleUpdateUpload(WiFiManager& wifi_manager) {
       setUpdateFailure("Finish Wi-Fi setup before installing firmware.");
       return;
     }
+    if (!services::adsb::waitForIdle(12000)) {
+      setUpdateFailure("Aircraft request is still finishing. Please retry the update.");
+      return;
+    }
     String filename = upload.filename;
     filename.toLowerCase();
     if (!filename.endsWith(".bin")) {
@@ -353,12 +359,12 @@ void sendUpdateResult(WebServer& server) {
 void sendStatus(WebServer& server) {
   const bool connected = WiFi.status() == WL_CONNECTED;
   const String ip = connected ? WiFi.localIP().toString() : String("Unavailable");
-  char response[512];
+  char response[640];
   snprintf(response, sizeof(response),
            "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\",\"hostname\":\"%s\","
            "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\","
            "\"labelMask\":%u,\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
-           "\"airportRunways\":%s,\"airportLabels\":%s,\"dimRings\":%s,\"sweep\":%s}",
+           "\"airportRunways\":%s,\"airportLabels\":%s,\"dimRings\":%s,\"sweep\":%s,\"adsbBusy\":%s,\"adsbUpdates\":%u,\"aircraftCount\":%u,\"freeHeap\":%u,\"adsbStackFree\":%u,\"sweepFrames\":%u,\"sweepMaxGapMs\":%u}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
            wifiPortalHostUrl(),
            services::location::lat(), services::location::lon(),
@@ -370,7 +376,14 @@ void sendStatus(WebServer& server) {
            ui::radar::showRunways() ? "true" : "false",
            ui::radar::showRunwayLabels() ? "true" : "false",
            ui::radar::dimRings() ? "true" : "false",
-           ui::radar::sweepEnabled() ? "true" : "false");
+           ui::radar::sweepEnabled() ? "true" : "false",
+           services::adsb::busy() ? "true" : "false",
+           static_cast<unsigned>(services::adsb::completedUpdates()),
+           static_cast<unsigned>(services::adsb::aircraftCount()),
+           static_cast<unsigned>(ESP.getFreeHeap()),
+           static_cast<unsigned>(services::adsb::workerStackFree()),
+           static_cast<unsigned>(ui::sweepFrameCount()),
+           static_cast<unsigned>(ui::sweepMaxGapMs()));
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json", response);
 }

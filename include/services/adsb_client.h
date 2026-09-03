@@ -19,11 +19,25 @@ constexpr size_t kMaxAircraft = 64;
 size_t aircraftCount();
 const Aircraft* aircraftList();
 
-/** Hook invoked during long HTTP I/O (e.g. wifiLoop). Optional. */
-using PollFn = void (*)();
-void setPollFn(PollFn fn);
+struct Query {
+  double lat;
+  double lon;
+  float radius_km;
+  uint16_t labels;
+};
+inline bool sameQuery(const Query& a, const Query& b) {
+  return a.lat == b.lat && a.lon == b.lon &&
+         a.radius_km == b.radius_km && a.labels == b.labels;
+}
 
-/** Fetch aircraft within fetch_radius_km of center_lat/lon from adsb.fi. */
-bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km);
+/** Main-loop-only API: one queued/in-flight request maximum. */
+bool begin();
+bool requestUpdate(const Query& query);
+bool applyUpdate(const Query& current);
+bool busy();
+uint32_t completedUpdates();
+uint32_t workerStackFree();
+/** OTA drains a pending request before flash writes; timeout leaves firmware intact. */
+bool waitForIdle(uint32_t timeout_ms);
 
 }  // namespace services::adsb

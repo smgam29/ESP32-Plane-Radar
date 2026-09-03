@@ -59,15 +59,9 @@ void handleBootButton() {
   }
 }
 
-void fetchAndDrawAircraft() {
-  const float fetch_km = ui::radar::fetchRadiusKm();
-  if (!services::adsb::fetchUpdate(services::location::lat(),
-                                   services::location::lon(), fetch_km)) {
-    handleBootButton();
-    return;
-  }
-  ui::radarDisplayRefreshAircraft();
-  handleBootButton();
+services::adsb::Query currentQuery() {
+  return {services::location::lat(), services::location::lon(),
+          ui::radar::fetchRadiusKm(), ui::radar::labelMask()};
 }
 
 }  // namespace
@@ -86,16 +80,22 @@ void setup() {
   }
   services::location::init();
   ui::radar::rangeInit();
-  services::adsb::setPollFn(pollBackground);
+
 
   if (wifiSetupConnect()) {
     showRadarIfConnected();
+    services::adsb::begin();
   }
 }
 
 void loop() {
   handleBootButton();
   pollBackground();
+  const bool new_aircraft = services::adsb::applyUpdate(currentQuery());
+  if (new_aircraft && g_radar_visible && WiFi.status() == WL_CONNECTED &&
+      !services::web::updateInProgress()) {
+    ui::radarDisplayRefreshAircraft();
+  }
 
   if (WiFi.status() != WL_CONNECTED) {
     if (g_radar_visible) {
@@ -122,8 +122,9 @@ void loop() {
       showRadarIfConnected();
     } else if (!services::web::updateInProgress() &&
                millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
-      g_last_adsb_fetch_ms = millis();
-      fetchAndDrawAircraft();
+      // Start at most one request; captures settings before handing off.
+      if (services::adsb::begin() && services::adsb::requestUpdate(currentQuery()))
+        g_last_adsb_fetch_ms = millis();
     }
   }
 
