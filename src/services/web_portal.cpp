@@ -31,7 +31,10 @@ h2{font-size:1.05rem;margin:.1rem 0 1rem}dl{display:grid;grid-template-columns:1
 dt{color:#9ab6c2}dd{margin:0;text-align:right;overflow-wrap:anywhere}nav{margin-top:1rem}
 a{color:#5ee6a8;margin-right:1rem}small{display:block;color:#9ab6c2;margin:.7rem 0}
 button{background:#5ee6a8;border:0;border-radius:.4rem;color:#071421;font-weight:700;padding:.65rem 1rem}
-input{max-width:100%;margin-bottom:.8rem}progress{display:none;width:100%;margin-top:1rem}.message{min-height:1.4rem}
+input{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{display:block;color:#9ab6c2}
+.coords{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}.coords input{width:100%;padding:.5rem}
+.secondary{background:#24485a;color:#eef7f4;margin-right:.5rem}progress{display:none;width:100%;margin-top:1rem}
+.message{min-height:1.4rem}.error{color:#ff9b9b}.success{color:#5ee6a8}
 </style>
 </head>
 <body>
@@ -42,9 +45,22 @@ input{max-width:100%;margin-bottom:.8rem}progress{display:none;width:100%;margin
 <dt>Firmware version</dt><dd id="version">...</dd>
 <dt>Wi-Fi</dt><dd id="wifi">...</dd>
 <dt>IP address</dt><dd id="ip">...</dd>
-<dt>Latitude</dt><dd id="lat">...</dd>
-<dt>Longitude</dt><dd id="lon">...</dd>
+<dt>Latitude</dt><dd id="status-lat">...</dd>
+<dt>Longitude</dt><dd id="status-lon">...</dd>
 </dl>
+</section>
+<section>
+<h2>Radar location</h2>
+<form id="location-form">
+<div class="coords">
+<label>Latitude<input id="lat" name="lat" type="number" min="-90" max="90" step="0.000001" inputmode="decimal" required></label>
+<label>Longitude<input id="lon" name="lon" type="number" min="-180" max="180" step="0.000001" inputmode="decimal" required></label>
+</div>
+<button id="locate" class="secondary" type="button">Use my current location</button>
+<button id="save-location" type="submit">Save location</button>
+</form>
+<p id="location-message" class="message" role="status"></p>
+<small>New coordinates apply to the next aircraft refresh.</small>
 </section>
 <section>
 <h2>Firmware</h2>
@@ -58,9 +74,28 @@ input{max-width:100%;margin-bottom:.8rem}progress{display:none;width:100%;margin
 </section>
 <nav><a href="/wifi">Wi-Fi setup</a><a href="/param">Radar settings</a></nav>
 <script>
-fetch('/api/status',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>{
-for(const k of ['version','wifi','ip','lat','lon'])document.getElementById(k).textContent=s[k]
-}).catch(()=>document.getElementById('wifi').textContent='Status unavailable')
+const lat=document.getElementById('lat'),lon=document.getElementById('lon'),locMessage=document.getElementById('location-message');
+function showLocationMessage(text,ok=false){locMessage.textContent=text;locMessage.className='message '+(ok?'success':'error')}
+function loadStatus(){return fetch('/api/status',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>{
+for(const k of ['version','wifi','ip'])document.getElementById(k).textContent=s[k];
+document.getElementById('status-lat').textContent=s.lat;document.getElementById('status-lon').textContent=s.lon;
+lat.value=s.lat;lon.value=s.lon
+})}
+loadStatus().catch(()=>document.getElementById('wifi').textContent='Status unavailable');
+document.getElementById('location-form').addEventListener('submit',e=>{e.preventDefault();
+if(!e.target.reportValidity())return;const save=document.getElementById('save-location');save.disabled=true;showLocationMessage('Saving...');
+fetch('/api/settings/location',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({lat:lat.value,lon:lon.value})})
+.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Location was not saved.');
+document.getElementById('status-lat').textContent=result.lat;document.getElementById('status-lon').textContent=result.lon;
+lat.value=result.lat;lon.value=result.lon;showLocationMessage(result.message,true)
+}).catch(e=>showLocationMessage(e.message||'Location was not saved.')).finally(()=>save.disabled=false)
+});
+document.getElementById('locate').addEventListener('click',()=>{
+if(!navigator.geolocation){showLocationMessage('Location is not available in this browser.');return}
+showLocationMessage('Requesting your location...');navigator.geolocation.getCurrentPosition(p=>{
+lat.value=p.coords.latitude.toFixed(6);lon.value=p.coords.longitude.toFixed(6);showLocationMessage('Location filled in. Select Save location to apply it.',true)
+},e=>showLocationMessage(e.message||'Could not get your location.'),{enableHighAccuracy:true,timeout:15000,maximumAge:60000})
+});
 const form=document.getElementById('update-form'),file=document.getElementById('firmware'),
 button=document.getElementById('install'),bar=document.getElementById('progress'),message=document.getElementById('message');
 form.addEventListener('submit',e=>{e.preventDefault();const f=file.files[0];
@@ -192,6 +227,29 @@ void sendStatus(WebServer& server) {
   server.send(200, "application/json", response);
 }
 
+void sendLocationResult(WebServer& server) {
+  if (s_update_in_progress) {
+    server.send(409, "application/json",
+                "{\"ok\":false,\"message\":\"Wait for the firmware update to finish.\"}");
+    return;
+  }
+  if (!server.hasArg("lat") || !server.hasArg("lon") ||
+      !services::location::saveFromStrings(server.arg("lat").c_str(),
+                                           server.arg("lon").c_str())) {
+    server.send(400, "application/json",
+                "{\"ok\":false,\"message\":\"Enter latitude from -90 to 90 and longitude from -180 to 180.\"}");
+    return;
+  }
+
+  char response[160];
+  snprintf(response, sizeof(response),
+           "{\"ok\":true,\"message\":\"Location saved.\","
+           "\"lat\":\"%.6f\",\"lon\":\"%.6f\"}",
+           services::location::lat(), services::location::lon());
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", response);
+}
+
 void sendHome(WiFiManager& wifi_manager) {
   WebServer& server = *wifi_manager.server;
   if (wifi_manager.getConfigPortalActive()) {
@@ -211,6 +269,8 @@ void attach(WiFiManager& wifi_manager) {
     manager->server->on("/", [manager]() { sendHome(*manager); });
     manager->server->on("/api/status",
                         [manager]() { sendStatus(*manager->server); });
+    manager->server->on("/api/settings/location", HTTP_POST,
+                        [manager]() { sendLocationResult(*manager->server); });
     manager->server->on(
         "/api/update", HTTP_POST,
         [manager]() { sendUpdateResult(*manager->server); },
