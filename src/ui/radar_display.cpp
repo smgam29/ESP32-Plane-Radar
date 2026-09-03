@@ -592,9 +592,15 @@ void drawGridRing(int cx, int cy, int r, uint16_t color) {
 }
 
 void drawRings(int cx, int cy, int outer_radius) {
+  // Pre-blend at 50% opacity; no extra framebuffer or alpha processing.
+  const uint16_t color = radar::dimRings()
+      ? tft.color565((radar::kGridR + radar::kBgR) / 2,
+                     (radar::kGridG + radar::kBgG) / 2,
+                     (radar::kGridB + radar::kBgB) / 2)
+      : radar::kColorGrid;
   for (int i = 1; i <= radar::kRingCount; ++i) {
     const int r = (outer_radius * i) / radar::kRingCount;
-    drawGridRing(cx, cy, r, radar::kColorGrid);
+    drawGridRing(cx, cy, r, color);
   }
 }
 

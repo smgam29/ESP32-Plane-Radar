@@ -80,6 +80,11 @@ node test/label_picker_test.js
 
 ### Grid
 
+The web page’s **Radar appearance → Dim radar rings by 50%** option blends the
+ring RGB colour halfway toward the background. It leaves crosshairs, scale labels,
+aircraft and airport overlays unchanged. The toggle defaults off, is stored in
+NVS (`planeradar/dimRings`), and applies on the next radar refresh.
+
 - Dark blue background, subdued green rings and crosshairs
 - White **N / S / E / W** at the bezel; range label on the **east** spoke (ring 3 = ¾ of outer radius)
 - White center dot

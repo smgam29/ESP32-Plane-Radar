@@ -53,5 +53,13 @@ vm.runInNewContext(script, {
   submit();
   await new Promise(setImmediate);
   assert.equal(writes[1], 'mask=0');
+  assert.equal(element('save-appearance').disabled, false);
+  for (const enabled of [true, false]) {
+    element('dim-rings').checked = enabled;
+    element('appearance-form').listeners.submit({preventDefault() {}});
+    await new Promise(setImmediate);
+    assert.equal(writes[writes.length - 1], 'dimRings=' + (enabled ? '1' : '0'));
+    assert.equal(element('save-appearance').disabled, false);
+  }
   console.log('Label picker UI tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

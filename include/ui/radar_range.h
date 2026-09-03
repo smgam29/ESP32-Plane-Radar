@@ -51,6 +51,8 @@ uint8_t rangeIndex();
 float fetchRadiusKm();
 
 bool useMiles();
+bool dimRings();
+bool saveDimRings(bool enabled);
 bool showRunways();
 bool showRunwayLabels();
 void saveAirportOverlay(bool runways, bool labels);

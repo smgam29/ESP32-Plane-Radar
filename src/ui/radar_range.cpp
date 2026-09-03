@@ -15,6 +15,7 @@ namespace {
 constexpr char kPrefsNamespace[] = "planeradar";
 constexpr char kPrefsRangeKey[] = "rangeIdx";
 constexpr char kPrefsMilesKey[] = "useMiles";
+constexpr char kPrefsDimRingsKey[] = "dimRings";
 constexpr char kPrefsRunwaysKey[] = "showRwys";
 constexpr char kPrefsRunwayLabelsKey[] = "showRwLbl";
 constexpr char kPrefsTopDirectionKey[] = "topDir";
@@ -31,6 +32,7 @@ constexpr float kKmPerMile = 1.609344f;
 Preferences s_prefs;
 uint8_t s_range_index = kDefaultRangeIndex;
 bool s_use_miles = false;
+bool s_dim_rings = false;
 bool s_show_runways = true;
 bool s_show_runway_labels = true;
 TopDirection s_top_direction = TopDirection::North;
@@ -106,6 +108,7 @@ void rangeInit() {
   s_range_index =
       (saved < kRangePresetCount) ? saved : kDefaultRangeIndex;
   s_use_miles = s_prefs.getBool(kPrefsMilesKey, false);
+  s_dim_rings = s_prefs.getBool(kPrefsDimRingsKey, false);
   s_show_runways = s_prefs.getBool(kPrefsRunwaysKey, true);
   s_show_runway_labels = s_prefs.getBool(kPrefsRunwayLabelsKey, true);
   const uint8_t saved_direction =
@@ -137,6 +140,16 @@ float fetchRadiusKm() {
 }
 
 bool useMiles() { return s_use_miles; }
+
+bool dimRings() { return s_dim_rings; }
+
+bool saveDimRings(bool enabled) {
+  if (!s_prefs.begin(kPrefsNamespace, false)) return false;
+  const bool saved = s_prefs.putBool(kPrefsDimRingsKey, enabled) == 1;
+  s_prefs.end();
+  if (saved) s_dim_rings = enabled;
+  return saved;
+}
 
 bool showRunways() { return s_show_runways; }
 
@@ -266,10 +279,12 @@ void formatCurrentRing3Label(char* buf, size_t len) {
 
 void unitsReset() {
   s_use_miles = false;
+  s_dim_rings = false;
   s_show_runways = true;
   s_show_runway_labels = true;
   if (s_prefs.begin(kPrefsNamespace, false)) {
     s_prefs.remove(kPrefsMilesKey);
+    s_prefs.remove(kPrefsDimRingsKey);
     s_prefs.remove(kPrefsRunwaysKey);
     s_prefs.remove(kPrefsRunwayLabelsKey);
     s_prefs.remove(kPrefsTopDirectionKey);
