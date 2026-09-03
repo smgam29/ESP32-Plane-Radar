@@ -74,7 +74,7 @@ void setup() {
   bootButtonInit();
   displayInit();
   if (wifiShowsSetupScreenOnBoot()) {
-    statusScreenPortal();
+    statusScreenPortal(wifiPortalHostUrl());
   }
   services::location::init();
   ui::radar::rangeInit();

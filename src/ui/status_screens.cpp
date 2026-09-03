@@ -206,13 +206,13 @@ void statusScreenConnectingTick() {
   drawSpinnerDots();
 }
 
-void statusScreenPortal() {
+void statusScreenPortal(const char* host_url) {
   const TextLine lines[] = {
       {"Wi-Fi setup", 1.15f, &kPortalGfxTitle},
       {"1. Join network:", 1.05f, &kPortalGfxBody},
       {config::kPortalApName, 1.12f, &kPortalGfxEmphasis},
       {"2. Open in browser:", 1.05f, &kPortalGfxBody},
-      {config::kPortalHostUrl, 1.12f, &kPortalGfxEmphasis},
+      {host_url, 1.12f, &kPortalGfxEmphasis},
       {"or 192.168.4.1", 1.0f, &kPortalGfxBody},
   };
   drawTextBlock(config::kColorYellow, config::kTextOnYellow, lines,

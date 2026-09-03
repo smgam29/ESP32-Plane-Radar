@@ -1,6 +1,6 @@
 #pragma once
 
-void statusScreenPortal();
+void statusScreenPortal(const char* host_url);
 void statusScreenConnectFailed();
 void statusScreenWifiReset();
 

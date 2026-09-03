@@ -13,6 +13,7 @@
 
 #include "data/large_airports.h"
 #include "services/radar_location.h"
+#include "services/wifi_setup.h"
 #include "ui/radar_range.h"
 #include "version.h"
 
@@ -49,6 +50,7 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <dt>Firmware version</dt><dd id="version">...</dd>
 <dt>Wi-Fi</dt><dd id="wifi">...</dd>
 <dt>IP address</dt><dd id="ip">...</dd>
+<dt>Device address</dt><dd id="hostname">...</dd>
 <dt>Latitude</dt><dd id="status-lat">...</dd>
 <dt>Longitude</dt><dd id="status-lon">...</dd>
 </dl>
@@ -126,7 +128,7 @@ const lat=document.getElementById('lat'),lon=document.getElementById('lon'),locM
 const airportIcao=document.getElementById('airport-icao'),airportOptions=document.getElementById('airport-options');
 function showMessage(el,text,ok=false){el.textContent=text;el.className='message '+(ok?'success':'error')}
 function loadStatus(){return fetch('/api/status',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>{
-for(const k of ['version','wifi','ip'])document.getElementById(k).textContent=s[k];
+for(const k of ['version','wifi','ip','hostname'])document.getElementById(k).textContent=s[k];
 document.getElementById('status-lat').textContent=s.lat;document.getElementById('status-lon').textContent=s.lon;
 lat.value=s.lat;lon.value=s.lon;document.getElementById('orientation').value=s.orientation;
 document.getElementById('label-callsign').checked=s.labelCallsign;
@@ -298,13 +300,14 @@ void sendUpdateResult(WebServer& server) {
 void sendStatus(WebServer& server) {
   const bool connected = WiFi.status() == WL_CONNECTED;
   const String ip = connected ? WiFi.localIP().toString() : String("Unavailable");
-  char response[448];
+  char response[512];
   snprintf(response, sizeof(response),
-           "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\","
+           "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\",\"hostname\":\"%s\","
            "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\","
            "\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
            "\"airportRunways\":%s,\"airportLabels\":%s}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
+           wifiPortalHostUrl(),
            services::location::lat(), services::location::lon(),
            ui::radar::topDirectionCode(),
            ui::radar::showCallsign() ? "true" : "false",
