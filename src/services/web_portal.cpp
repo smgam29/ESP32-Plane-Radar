@@ -7,9 +7,11 @@
 
 #include <esp_system.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
+#include "data/large_airports.h"
 #include "services/radar_location.h"
 #include "ui/radar_range.h"
 #include "version.h"
@@ -89,6 +91,14 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 </section>
 <section>
 <h2>Radar location</h2>
+<form id="airport-location-form">
+<label>Set base from ICAO airport
+<input id="airport-icao" list="airport-options" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="EGHI" pattern="[A-Za-z0-9]{4}" required></label>
+<datalist id="airport-options"></datalist>
+<button id="save-airport-location" type="submit">Use airport</button>
+</form>
+<p id="airport-location-message" class="message" role="status"></p>
+<small>Enter a four-letter ICAO code. Suggestions cover worldwide major airports and UK fixed-wing airfields.</small>
 <form id="location-form">
 <div class="coords">
 <label>Latitude<input id="lat" name="lat" type="number" min="-90" max="90" step="0.000001" inputmode="decimal" required></label>
@@ -113,6 +123,7 @@ input,select{box-sizing:border-box;max-width:100%;margin-bottom:.8rem}label{disp
 <nav><a href="/wifi">Wi-Fi setup</a><a href="/param">Radar settings</a></nav>
 <script>
 const lat=document.getElementById('lat'),lon=document.getElementById('lon'),locMessage=document.getElementById('location-message');
+const airportIcao=document.getElementById('airport-icao'),airportOptions=document.getElementById('airport-options');
 function showMessage(el,text,ok=false){el.textContent=text;el.className='message '+(ok?'success':'error')}
 function loadStatus(){return fetch('/api/status',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>{
 for(const k of ['version','wifi','ip'])document.getElementById(k).textContent=s[k];
@@ -125,6 +136,19 @@ document.getElementById('airport-runways').checked=s.airportRunways;
 document.getElementById('airport-labels').checked=s.airportLabels
 })}
 loadStatus().catch(()=>document.getElementById('wifi').textContent='Status unavailable');
+airportIcao.addEventListener('input',()=>{const query=airportIcao.value.trim().toUpperCase();airportIcao.value=query;
+if(query.length<2){airportOptions.replaceChildren();return}
+fetch('/api/airports?query='+encodeURIComponent(query),{cache:'no-store'}).then(r=>r.json()).then(result=>{
+airportOptions.replaceChildren(...result.airports.map(code=>{const option=document.createElement('option');option.value=code;return option}))
+}).catch(()=>airportOptions.replaceChildren())
+});
+document.getElementById('airport-location-form').addEventListener('submit',e=>{e.preventDefault();
+if(!e.target.reportValidity())return;const save=document.getElementById('save-airport-location'),msg=document.getElementById('airport-location-message');save.disabled=true;showMessage(msg,'Saving...');
+fetch('/api/settings/airport-location',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({icao:airportIcao.value.trim().toUpperCase()})})
+.then(async r=>{const result=await r.json();if(!r.ok)throw Error(result.message||'Airport was not found.');
+airportIcao.value=result.icao;lat.value=result.lat;lon.value=result.lon;document.getElementById('status-lat').textContent=result.lat;document.getElementById('status-lon').textContent=result.lon;showMessage(msg,result.message,true)
+}).catch(e=>showMessage(msg,e.message||'Airport was not found.')).finally(()=>save.disabled=false)
+});
 document.getElementById('orientation-form').addEventListener('submit',e=>{e.preventDefault();
 const save=document.getElementById('save-orientation'),msg=document.getElementById('orientation-message');save.disabled=true;showMessage(msg,'Saving...');
 fetch('/api/settings/orientation',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({orientation:document.getElementById('orientation').value})})
@@ -348,6 +372,98 @@ bool parseBooleanArg(WebServer& server, const char* name, bool* value) {
   return false;
 }
 
+char upperAscii(char value) {
+  return value >= 'a' && value <= 'z' ? static_cast<char>(value - 'a' + 'A')
+                                      : value;
+}
+
+bool matchesIcao(const char* query, const char ident[5], bool exact) {
+  if (query == nullptr || query[0] == '\0') {
+    return false;
+  }
+  for (size_t i = 0; i < 4; ++i) {
+    if (query[i] == '\0') {
+      return !exact;
+    }
+    if (upperAscii(query[i]) != ident[i]) {
+      return false;
+    }
+  }
+  return !exact || query[4] == '\0';
+}
+
+const data::large_airports::Airport* findAirport(const char* icao) {
+  for (size_t i = 0; i < data::large_airports::kAirportCount; ++i) {
+    const auto& airport = data::large_airports::kAirports[i];
+    if (matchesIcao(icao, airport.ident, true)) {
+      return &airport;
+    }
+  }
+  return nullptr;
+}
+
+void sendAirportMatches(WebServer& server) {
+  const String query_string = server.arg("query");
+  char query[5] = {};
+  const size_t query_length =
+      std::min(static_cast<size_t>(query_string.length()), sizeof(query) - 1);
+  for (size_t i = 0; i < query_length; ++i) {
+    query[i] = upperAscii(query_string[i]);
+  }
+
+  char response[128] = "{\"airports\":[";
+  size_t used = strlen(response);
+  size_t matches = 0;
+  for (size_t i = 0; i < data::large_airports::kAirportCount && matches < 8;
+       ++i) {
+    const auto& airport = data::large_airports::kAirports[i];
+    if (!matchesIcao(query, airport.ident, false)) {
+      continue;
+    }
+    const int written = snprintf(response + used, sizeof(response) - used,
+                                 "%s\"%s\"", matches == 0 ? "" : ",",
+                                 airport.ident);
+    if (written < 0 || static_cast<size_t>(written) >= sizeof(response) - used) {
+      break;
+    }
+    used += static_cast<size_t>(written);
+    ++matches;
+  }
+  snprintf(response + used, sizeof(response) - used, "]}");
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", response);
+}
+
+void sendAirportLocationResult(WebServer& server) {
+  if (s_update_in_progress) {
+    server.send(409, "application/json",
+                "{\"ok\":false,\"message\":\"Wait for the firmware update to finish.\"}");
+    return;
+  }
+  if (!server.hasArg("icao")) {
+    server.send(400, "application/json",
+                "{\"ok\":false,\"message\":\"Enter a four-letter ICAO code.\"}");
+    return;
+  }
+  const data::large_airports::Airport* airport =
+      findAirport(server.arg("icao").c_str());
+  if (airport == nullptr ||
+      !services::location::save(airport->lat_e7 * 1e-7,
+                                airport->lon_e7 * 1e-7)) {
+    server.send(404, "application/json",
+                "{\"ok\":false,\"message\":\"Airport not found in this firmware.\"}");
+    return;
+  }
+  char response[192];
+  snprintf(response, sizeof(response),
+           "{\"ok\":true,\"message\":\"Base location set to %s.\","
+           "\"icao\":\"%s\",\"lat\":\"%.6f\",\"lon\":\"%.6f\"}",
+           airport->ident, airport->ident, services::location::lat(),
+           services::location::lon());
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", response);
+}
+
 void sendLabelsResult(WebServer& server) {
   if (s_update_in_progress) {
     server.send(409, "application/json",
@@ -417,6 +533,10 @@ void attach(WiFiManager& wifi_manager) {
                         [manager]() { sendLabelsResult(*manager->server); });
     manager->server->on("/api/settings/airports", HTTP_POST,
                         [manager]() { sendAirportsResult(*manager->server); });
+    manager->server->on("/api/airports", HTTP_GET,
+                        [manager]() { sendAirportMatches(*manager->server); });
+    manager->server->on("/api/settings/airport-location", HTTP_POST,
+                        [manager]() { sendAirportLocationResult(*manager->server); });
     manager->server->on(
         "/api/update", HTTP_POST,
         [manager]() { sendUpdateResult(*manager->server); },

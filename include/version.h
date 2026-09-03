@@ -3,7 +3,7 @@
 // Override from PlatformIO/CI with:
 //   -DPLANE_RADAR_VERSION=\"1.2.0\"
 #ifndef PLANE_RADAR_VERSION
-#define PLANE_RADAR_VERSION "1.6.1-dev"
+#define PLANE_RADAR_VERSION "1.7.0-dev"
 #endif
 
 namespace firmware {
