@@ -18,6 +18,7 @@ After Wi‑Fi is saved, the device reconnects automatically; the radar runs in t
 | Action | Effect |
 |--------|--------|
 | **Short tap** | Cycle range preset (5 → 10 → 15 → 25 km); saved to flash |
+| **Five rapid taps** | Show the permanent four-character device ID and current IP for five seconds; the final range is unchanged |
 | **Hold 3 s** | Clear Wi‑Fi, location, and units; reboot into setup portal |
 
 During setup you can also hold BOOT at power-on to force a credential reset (same as the long press).
@@ -35,7 +36,7 @@ During setup you can also hold BOOT at power-on to force a credential reset (sam
 1. Open **`http://plane-radar.local`** or **`http://<device-ip>`** (e.g. from your router or serial log at boot)
 2. Change Wi‑Fi, location, units, or runway overlay; save
 
-The same portal runs on the setup AP and on the device’s LAN IP while connected to Wi‑Fi. Its mDNS address is **plane-radar.local**. If multiple radars share a network, use each device's IP address to distinguish them; the shared mDNS name is not a reliable device selector. Some clients resolve `.local` slowly; use the IP if needed.
+The same portal runs on the setup AP and on the device’s LAN IP while connected to Wi‑Fi. Its mDNS address is **plane-radar.local**. If multiple radars share a network, use each device's IP address to distinguish them; the shared mDNS name is not a reliable device selector. Press a unit's button five times rapidly to show its MAC-derived four-character ID and current IP address for five seconds. Some clients resolve `.local` slowly; use the IP if needed.
 
 **Custom fields** (stored in NVS):
 
@@ -54,7 +55,7 @@ After a reset, the device reboots and shows the setup screen immediately (no “
 The local web page offers callsign, aircraft type, altitude, registration,
 ground speed, climb/descent rate, squawk, ADS-B category, navigation modes,
 and a military marker. Select zero to three; both the page and API enforce
-the limit. Missing data is omitted. Choices apply on the next aircraft refresh.
+the limit. Missing data is omitted. Choices redraw immediately after saving.
 Existing callsign/type/altitude preferences survive the upgrade; new selections
 are saved as a 16-bit `labelsV2` value in the existing `planeradar` NVS namespace.
 
