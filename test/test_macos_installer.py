@@ -9,6 +9,14 @@ from scripts import build_macos_installer
 
 
 class MacInstallerTests(unittest.TestCase):
+    def test_launcher_avoids_old_conda_python_and_source_builds(self):
+        launcher = (build_macos_installer.REPO / "installer/Start-Mac.command").read_text()
+        self.assertLess(launcher.index("/opt/homebrew/bin/python3"),
+                        launcher.index("command -v python3"))
+        self.assertIn("sys.version_info >= (3, 9)", launcher)
+        self.assertIn("venv --clear", launcher)
+        self.assertIn("--only-binary=:all:", launcher)
+
     def test_app_contains_executable_launcher_and_complete_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

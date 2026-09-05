@@ -5,6 +5,8 @@ It is a tester build, not an official MatixYo release. Use a trusted copy.
 
 1. Extract the ENTIRE ZIP to a writable folder. Do not run inside the ZIP.
 2. Install Python 3.11 from https://www.python.org/downloads/ if needed.
+   Python 3.8 and older are not supported; the Mac launcher searches Homebrew
+   and python.org installs before any older Conda Python in your shell.
 3. Close serial monitors. Disconnect other ESP boards. Use a USB data cable.
 4. With USB unplugged, hold the radar's range/BOOT button, connect USB, then
    release it. The display may stay blank. Do not hold BOOT on a powered radar:

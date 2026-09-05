@@ -1,1 +1,4 @@
 esptool==4.5.1
+# Keep dependency resolution deterministic enough to avoid future source-only
+# cryptography releases on older supported Macs.
+cryptography>=41.0.7,<47

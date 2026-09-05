@@ -7,7 +7,10 @@ the guarded Python helper, Mac and Windows launchers, pinned esptool requirement
 release metadata, checksums, MIT attribution, quick-start text and a two-page A4
 PDF. The Mac app copies its payload to a versioned folder under Documents and
 opens the same interactive installer in Terminal, so backups remain writable and
-easy to find. It is currently unsigned/unnotarized; first launch uses Control-click
+easy to find. The launcher selects Python 3.9+ outside an obsolete activated Conda
+environment, replaces stale Python 3.8 virtual environments, upgrades pip, and
+requires binary dependencies rather than attempting local Rust/C compilation.
+It is currently unsigned/unnotarized; first launch uses Control-click
 then Open. No source build, PlatformIO, merged/factory image or private device data is
 included. Python 3.11 is recommended. First launch downloads dependencies into
 the extracted folder's `.venv`; the firmware and serial migration are local.
