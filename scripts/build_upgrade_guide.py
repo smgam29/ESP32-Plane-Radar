@@ -66,10 +66,10 @@ def build(version, output):
         canvas.drawRightString(A4[0] - 40, 27, str(doc.page) + " / 2")
         canvas.restoreState()
 
-    story = [p("Upgrade your radar", TITLE),
-        p("Original firmware to custom firmware  |  One-time USB migration", HEAD),
+    story = [p("Installer help (fallback)", TITLE),
+        p("Use this only if the Mac installer app does not start or stops", HEAD),
         p(f"Package: <b>{version}</b> (tester build). For the <b>ESP32-C3 Super Mini, 4 MB flash and GC9A01 240 x 240 display</b>. Not an official MatixYo release."),
-        box("<b>The route:</b> USB backup + first install &nbsp; / &nbsp; check your radar &nbsp; / &nbsp; future updates by Wi-Fi"),
+        box("<b>Start with Plane Radar Installer.app.</b> You do not need to follow this document first. Return here only for manual-launch instructions, explanations or recovery help.", colors.HexColor("#E7F8EC")),
         p("1  Prepare the computer", HEAD),
         p("Extract the <b>entire ZIP</b> into a writable folder. Keep all files together. Install <b>Python 3.11</b> from <link href='https://www.python.org/downloads/' color='#087F79'>python.org/downloads</link> if needed. The first launcher run needs internet to install a small, pinned USB flashing tool in this folder."),
         p("Use a known <b>USB data cable</b> and stable power. Close serial monitors and browser flashers; disconnect other ESP boards. Allow 5-15 minutes. Your radar still uses <b>2.4 GHz Wi-Fi</b>. No PlatformIO or source-code build is needed."),
