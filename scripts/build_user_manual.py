@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Generate the A4 Plane Radar user manual."""
 import argparse
+import tempfile
 from pathlib import Path
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.graphics.barcode import qr
+from reportlab.graphics.shapes import Drawing
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, PageBreak
+from pypdf import PdfReader, PdfWriter
 
 NAVY = colors.HexColor("#163748")
 TEAL = colors.HexColor("#087F79")
@@ -47,6 +52,57 @@ def rows(data, widths=(145, WIDTH - 145)):
     return table
 
 
+def draw_quick_flyer(path, version):
+    """Recreate the original safety-first one-page flyer as the manual cover."""
+    c = pdfcanvas.Canvas(str(path), pagesize=A4)
+    w, h = A4
+    c.setFillColor(colors.HexColor("#081D39")); c.rect(0, h - 92, w, 92, fill=1, stroke=0)
+    c.setFillColor(colors.white); c.setFont("Helvetica", 25); c.drawString(98, h - 43, "DESK PLANE RADAR")
+    c.setFillColor(colors.HexColor("#52E879")); c.setFont("Helvetica", 12); c.drawString(99, h - 66, "QUICK SETUP GUIDE")
+    c.setFillColor(colors.white); c.setFont("Helvetica", 8); c.drawString(99, h - 81, "Live aircraft around you, on a tiny round radar.")
+    # Simple radar mark.
+    c.setStrokeColor(colors.HexColor("#20C45A")); c.setLineWidth(1.5)
+    for r in (10, 20, 30): c.circle(54, h - 47, r, stroke=1, fill=0)
+    c.line(24, h - 47, 84, h - 47); c.line(54, h - 77, 54, h - 17)
+    c.setLineWidth(4); c.line(54, h - 47, 70, h - 66)
+
+    def card(x, y, cw, ch, title, text, fill="#FFFFFF", border="#D8E1E8", title_color="#073A63"):
+        c.setFillColor(colors.HexColor(fill)); c.setStrokeColor(colors.HexColor(border)); c.setLineWidth(.8)
+        c.roundRect(x, y, cw, ch, 10, fill=1, stroke=1)
+        p(title, ParagraphStyle("ct", parent=HEAD, fontSize=11, leading=13,
+          textColor=colors.HexColor(title_color), spaceBefore=0)).wrapOn(c, cw-26, ch)
+        title_p = p(title, ParagraphStyle("ct2", parent=HEAD, fontSize=11, leading=13,
+          textColor=colors.HexColor(title_color), spaceBefore=0))
+        _, th = title_p.wrap(cw-26, ch); title_p.drawOn(c, x+13, y+ch-18-th)
+        body_p = p(text, ParagraphStyle("cb", parent=BODY, fontSize=8.4, leading=11.2, spaceAfter=0))
+        _, bh = body_p.wrap(cw-26, ch-th-25); body_p.drawOn(c, x+13, y+ch-28-th-bh)
+
+    card(30, 625, 260, 100, "WHAT DOES IT DO?",
+         "Uses live ADS-B data to show aircraft near your chosen location, plotted by direction and distance.", "#EFF6FA", "#EFF6FA", "#059447")
+    card(305, 625, 260, 100, "IMPORTANT - TEST DEVICE",
+         "This is a test / experimental device. It can get warm during normal operation. <b>Do not leave it plugged in and unattended; unplug it when not in use.</b> Use responsibly.", "#FFF5F3", "#EF3038", "#EF3038")
+    card(30, 480, 260, 120, "1  POWER",
+         "<font color='#059447'><b>Bring your own USB-C data cable.</b></font><br/><br/>Use a suitable USB power source. The device may feel warm in use; this is normal.")
+    card(305, 480, 260, 120, "2  CONNECT TO RADAR WI-FI",
+         "On your phone or computer join:<br/><br/><b>PlaneRadar-Setup</b><br/><br/>Then open <b>http://192.168.4.1</b> in a browser.")
+    card(30, 320, 260, 135, "2.4 GHz WI-FI ONLY",
+         "The radar cannot connect to a 5 GHz-only network. Choose a 2.4 GHz network and enter its name, password and radar location.", "#FFF5D9", "#FFF5D9")
+    card(305, 320, 260, 135, "GET YOUR LATITUDE & LONGITUDE",
+         "Search for a location or select a point on a map, then copy its coordinates. The detailed pages explain airport selection too.", "#EFF6FA", "#EFF6FA")
+    code = qr.QrCodeWidget("https://www.latlong.net/")
+    bounds = code.getBounds(); size = 66
+    drawing = Drawing(size, size, transform=[size/(bounds[2]-bounds[0]),0,0,size/(bounds[3]-bounds[1]),0,0])
+    drawing.add(code); drawing.drawOn(c, 485, 333)
+    card(30, 155, 260, 140, "3  ENTER YOUR LOCATION",
+         "Use decimal degrees with up to six decimal places.<br/><br/><font color='#059447'>Example: 50.823456&nbsp;&nbsp; -1.097123</font><br/><br/>North/East are positive; South/West are negative.", "#EFF8F1", "#EFF8F1")
+    card(305, 155, 260, 140, "4  BUTTON CONTROLS",
+         "<font color='#059447'><b>SHORT PRESS</b></font> - cycle 5, 10, 15 and 25 km.<br/><br/><font color='#EF3038'><b>HOLD FOR 3 SECONDS</b></font> - wipes saved Wi-Fi, location and units, then restarts setup.")
+    c.setFillColor(colors.HexColor("#081D39")); c.rect(0, 0, w, 42, fill=1, stroke=0)
+    c.setFillColor(colors.HexColor("#52E879")); c.setFont("Helvetica-Bold", 10); c.drawString(30, 17, "READY TO TRACK")
+    c.setFillColor(colors.white); c.setFont("Helvetica", 7.5); c.drawString(132, 17, f"After setup, the radar reconnects automatically. Firmware {version}  |  1 / 5")
+    c.save()
+
+
 def build(version, output):
     output.parent.mkdir(parents=True, exist_ok=True)
     def page(canvas, doc):
@@ -56,7 +112,7 @@ def build(version, output):
         canvas.drawString(40, A4[1] - 27, "PLANE RADAR  /  USER MANUAL")
         canvas.setFont("Helvetica", 8); canvas.setFillColor(MUTED)
         canvas.drawString(40, 27, f"Firmware {version}  |  ESP32-C3 / GC9A01")
-        canvas.drawRightString(A4[0] - 40, 27, f"{doc.page} / 4"); canvas.restoreState()
+        canvas.drawRightString(A4[0] - 40, 27, f"{doc.page + 1} / 5"); canvas.restoreState()
 
     story = [p("Plane Radar user manual", TITLE),
       p("Daily use, web portal and settings", HEAD),
@@ -128,11 +184,20 @@ def build(version, output):
       p("Support and sources", HEAD),
       p("Custom firmware: <link href='https://github.com/smgam29/ESP32-Plane-Radar' color='#087F79'>github.com/smgam29/ESP32-Plane-Radar</link><br/>Original project: <link href='https://github.com/MatixYo/ESP32-Plane-Radar' color='#087F79'>github.com/MatixYo/ESP32-Plane-Radar</link>", SMALL)]
 
-    doc = SimpleDocTemplate(str(output), pagesize=A4, rightMargin=40, leftMargin=40,
-        topMargin=51, bottomMargin=45, title="Plane Radar User Manual",
-        author="Plane Radar custom firmware project")
-    doc.build(story, onFirstPage=page, onLaterPages=page)
-    if doc.page != 4: raise ValueError(f"Expected four pages, got {doc.page}")
+    with tempfile.TemporaryDirectory(prefix="plane-radar-manual-") as temporary:
+        flyer = Path(temporary) / "flyer.pdf"
+        detail = Path(temporary) / "detail.pdf"
+        draw_quick_flyer(flyer, version)
+        doc = SimpleDocTemplate(str(detail), pagesize=A4, rightMargin=40, leftMargin=40,
+            topMargin=51, bottomMargin=45, title="Plane Radar User Manual",
+            author="Plane Radar custom firmware project")
+        doc.build(story, onFirstPage=page, onLaterPages=page)
+        if doc.page != 4: raise ValueError(f"Expected four detail pages, got {doc.page}")
+        writer = PdfWriter()
+        writer.append(str(flyer)); writer.append(str(detail))
+        writer.add_metadata({"/Title": "Plane Radar User Manual",
+                             "/Author": "Plane Radar custom firmware project"})
+        with output.open("wb") as stream: writer.write(stream)
     print(output)
 
 

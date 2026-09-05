@@ -67,7 +67,7 @@ jobs:
 
       - name: Build first-upgrade package and A4 guide
         run: |
-          pip install reportlab==4.4.9
+          pip install reportlab==4.4.9 pypdf==6.8.0
           python3 -m unittest discover -s test -p 'test_upgrade_installer.py'
           python3 scripts/build_upgrade_guide.py \
             --version "${VERSION}" \
