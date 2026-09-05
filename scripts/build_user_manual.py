@@ -94,7 +94,7 @@ def draw_quick_flyer(path, version):
     drawing = Drawing(size, size, transform=[size/(bounds[2]-bounds[0]),0,0,size/(bounds[3]-bounds[1]),0,0])
     drawing.add(code); drawing.drawOn(c, 485, 333)
     card(30, 155, 260, 140, "3  ENTER YOUR LOCATION",
-         "Use decimal degrees with up to six decimal places.<br/><br/><font color='#059447'>Example: 50.823456&nbsp;&nbsp; -1.097123</font><br/><br/>North/East are positive; South/West are negative.", "#EFF8F1", "#EFF8F1")
+         "Use decimal degrees with up to six decimal places.<br/><br/><font color='#059447'>Public example - Heathrow Airport:<br/>51.470020&nbsp;&nbsp; -0.454295</font><br/><br/>North/East are positive; South/West are negative.", "#EFF8F1", "#EFF8F1")
     card(305, 155, 260, 140, "4  BUTTON CONTROLS",
          "<font color='#059447'><b>SHORT PRESS</b></font> - cycle 5, 10, 15 and 25 km.<br/><br/><font color='#EF3038'><b>HOLD FOR 3 SECONDS</b></font> - wipes saved Wi-Fi, location and units, then restarts setup.")
     c.setFillColor(colors.HexColor("#081D39")); c.rect(0, 0, w, 42, fill=1, stroke=0)
