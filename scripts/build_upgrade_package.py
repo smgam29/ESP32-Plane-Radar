@@ -13,6 +13,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 from installer.upgrade import PARTS, FLASH_SIZE, validate_package
+from scripts.build_macos_installer import build as build_macos_installer
 
 
 def build(version, build_dir, guide, output_dir):
@@ -48,6 +49,7 @@ def build(version, build_dir, guide, output_dir):
                 checksums.append(hashlib.sha256(file.read_bytes()).hexdigest() +
                                  "  " + file.relative_to(root).as_posix())
         (root / "SHA256SUMS.txt").write_text("\n".join(checksums) + "\n")
+        build_macos_installer(root, output_dir)
         archive = output_dir / (name + ".zip")
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as package:
             for file in sorted(root.rglob("*")):

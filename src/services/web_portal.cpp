@@ -363,13 +363,14 @@ void sendStatus(WebServer& server) {
   snprintf(response, sizeof(response),
            "{\"version\":\"%s\",\"wifi\":\"%s\",\"ip\":\"%s\",\"hostname\":\"%s\","
            "\"lat\":\"%.6f\",\"lon\":\"%.6f\",\"orientation\":\"%s\","
-           "\"labelMask\":%u,\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
+           "\"labelMask\":%u,\"renderedLabelMask\":%u,\"labelCallsign\":%s,\"labelType\":%s,\"labelAltitude\":%s,"
            "\"airportRunways\":%s,\"airportLabels\":%s,\"dimRings\":%s,\"sweep\":%s,\"adsbBusy\":%s,\"adsbUpdates\":%u,\"aircraftCount\":%u,\"freeHeap\":%u,\"adsbStackFree\":%u,\"sweepFrames\":%u,\"sweepMaxGapMs\":%u}",
            firmware::kVersion, connected ? "Connected" : "Disconnected", ip.c_str(),
            wifiPortalHostUrl(),
            services::location::lat(), services::location::lon(),
            ui::radar::topDirectionCode(),
            static_cast<unsigned>(ui::radar::labelMask()),
+           static_cast<unsigned>(ui::renderedLabelMask()),
            ui::radar::showCallsign() ? "true" : "false",
            ui::radar::showAircraftType() ? "true" : "false",
            ui::radar::showAltitude() ? "true" : "false",

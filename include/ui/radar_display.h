@@ -9,6 +9,7 @@ void radarDisplayDraw();
 void radarDisplayAnimate();
 uint32_t sweepFrameCount();
 uint32_t sweepMaxGapMs();
+uint16_t renderedLabelMask();
 
 /** Redraw the frame, or let the active sweep draw the new aircraft next frame. */
 void radarDisplayRefreshAircraft();

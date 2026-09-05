@@ -30,4 +30,23 @@ struct AircraftLabels {
   uint8_t count;
   bool emergency;
 };
+// Fixed-size, selection-independent snapshot. No JSON or heap ownership crosses
+// from the fetch worker to the display; missing numbers are represented by NaN.
+struct AircraftLabelData {
+  float altitude;
+  float groundSpeed;
+  float verticalRate;
+  char callsign[24];
+  char aircraftType[8];
+  char registration[16];
+  char squawk[8];
+  char category[4];
+  uint8_t navigation;
+  bool ground;
+  bool military;
+  bool emergency;
+};
+static_assert(sizeof(AircraftLabelData) <= 80, "Keep aircraft snapshots small");
+void formatAircraftLabels(const AircraftLabelData& data, uint16_t mask,
+                          AircraftLabels& out);
 }  // namespace services::adsb

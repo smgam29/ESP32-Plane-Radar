@@ -8,7 +8,7 @@
 
 using namespace services::adsb;
 int main() {
-  const Query query{50.9, -1.0, 25.0f, 7};
+  const Query query{50.9, -1.0, 25.0f};
   assert(sameQuery(query, query));
   auto changed = query;
   changed.lat += 0.01;
@@ -16,8 +16,6 @@ int main() {
   changed = query; changed.lon += 0.01;
   assert(!sameQuery(query, changed));
   changed = query; changed.radius_km = 10;
-  assert(!sameQuery(query, changed));
-  changed = query; changed.labels = 8;
   assert(!sameQuery(query, changed));
   for (unsigned mask = 0; mask <= 65535; ++mask) {
     const bool expected = mask <= kAllLabelMask && __builtin_popcount(mask) <= 3;
@@ -31,6 +29,24 @@ int main() {
   const char* expected[] = {"BAW123","A320","12000 ft","G-ABCD","123 kt",
     "-640 ft/m","SQ 0123","CAT A3","AP ALT LNAV","MIL"};
   AircraftLabels out{};
+  AircraftLabelData cached;
+  readAircraftLabelData(doc.as<JsonObjectConst>(), cached);
+  // A single cached response supports every selection, without another fetch.
+  for (unsigned mask = 0; mask <= kAllLabelMask; ++mask) {
+    AircraftLabels live{};
+    formatAircraftLabels(doc.as<JsonObjectConst>(), mask, live);
+    formatAircraftLabels(cached, mask, out);
+    assert(out.count == live.count && out.emergency == live.emergency);
+    for (uint8_t i = 0; i < out.count; ++i) {
+      assert(out.lines[i].kind == live.lines[i].kind);
+      assert(strcmp(out.lines[i].text, live.lines[i].text) == 0);
+    }
+  }
+  formatAircraftLabels(cached, 0, out);
+  assert(out.count == 0);
+  formatAircraftLabels(cached, 8 | 16 | 32, out);
+  assert(out.count == 3);
+  assert(strcmp(out.lines[0].text, "G-ABCD") == 0);
   for (uint8_t i = 0; i < kLabelCount; ++i) {
     formatAircraftLabels(doc.as<JsonObjectConst>(), 1U << i, out);
     assert(out.count == 1);
@@ -61,6 +77,9 @@ int main() {
     assert(out.emergency);
   }
   doc.clear();
+  // Snapshot owns its strings: destroying the response must not affect labels.
+  formatAircraftLabels(cached, 8 | 16 | 32, out);
+  assert(out.count == 3 && strcmp(out.lines[0].text, "G-ABCD") == 0);
   for (uint8_t i = 0; i < kLabelCount; ++i) {
     formatAircraftLabels(doc.to<JsonObject>(), 1U << i, out);
     assert(out.count == 0 && !out.emergency);

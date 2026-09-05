@@ -2,10 +2,13 @@
 
 ## Distribution design
 
-One ZIP, approximately 0.84 MB for 1.10.2-dev, containing four split images,
+One cross-platform ZIP plus a lightweight macOS app ZIP and DMG, containing four split images,
 the guarded Python helper, Mac and Windows launchers, pinned esptool requirement,
 release metadata, checksums, MIT attribution, quick-start text and a two-page A4
-PDF. No source build, PlatformIO, merged/factory image or private device data is
+PDF. The Mac app copies its payload to a versioned folder under Documents and
+opens the same interactive installer in Terminal, so backups remain writable and
+easy to find. It is currently unsigned/unnotarized; first launch uses Control-click
+then Open. No source build, PlatformIO, merged/factory image or private device data is
 included. Python 3.11 is recommended. First launch downloads dependencies into
 the extracted folder's `.venv`; the firmware and serial migration are local.
 
@@ -54,8 +57,8 @@ if the build uses one). The package validator rejects a version mismatch.
 pio run -e supermini
 pio run -e supermini -t merge
 python3 -m pip install reportlab==4.4.9
-python3 scripts/build_upgrade_guide.py --version 1.10.2-dev
-python3 scripts/build_upgrade_package.py --version 1.10.2-dev \
+python3 scripts/build_upgrade_guide.py --version 1.10.3-dev
+python3 scripts/build_upgrade_package.py --version 1.10.3-dev \
   --build-dir .pio/build/supermini \
   --guide output/pdf/Plane-Radar-Upgrade-Guide-A4.pdf --output-dir dist
 python3 -m unittest discover -s test -p 'test_upgrade_installer.py' -v

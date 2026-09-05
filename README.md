@@ -90,13 +90,19 @@ the existing framebuffer cannot be allocated.
 
 ### Background aircraft fetching
 
-Only one request is queued or active. The worker receives a snapshot of location,
-radius and label settings, and owns a separate bounded aircraft buffer. The main
+Only one request is queued or active. The worker receives a snapshot of location
+and radius, and owns a separate bounded aircraft buffer. The main
 loop copies a completed snapshot before acknowledging it; the worker never renders
-or handles web/NVS settings. Responses for changed settings are discarded, and
+or handles web/NVS settings. Responses for changed location/radius are discarded, and
 failed fetches preserve the current display. Poll frequency remains three seconds.
 The worker uses an 8 KB stack plus a second 64-aircraft buffer. Responses above
 64 KB are rejected and JSON parsing retains only the fields used by the firmware.
+
+Aircraft snapshots retain compact metadata for all ten label choices. Labels are
+formatted using the current selection when drawing, so changes apply even if the
+internet feed is slow or unavailable. Changing labels requests a redraw with the
+sweep off too; it does not trigger an extra API request. Status includes
+`renderedLabelMask` to distinguish a completed redraw from merely saved settings.
 
 OTA waits up to 12 seconds for any pending fetch to finish before writing flash;
 if it cannot drain safely, the upload fails with a retry message. Main-loop status

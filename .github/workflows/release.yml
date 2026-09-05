@@ -78,6 +78,9 @@ jobs:
             --guide dist/Plane-Radar-Upgrade-Guide-A4.pdf \
             --output-dir dist
 
+      # build_upgrade_package always emits a portable .app.zip. A DMG is also
+      # emitted on macOS local builds; GitHub's Linux release runner has no hdiutil.
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:

@@ -11,7 +11,7 @@ struct Aircraft {
   float nose_deg;
   float track_deg;
   float gs_knots;
-  AircraftLabels labels;
+  AircraftLabelData labels;
 };
 
 constexpr size_t kMaxAircraft = 64;
@@ -23,11 +23,10 @@ struct Query {
   double lat;
   double lon;
   float radius_km;
-  uint16_t labels;
 };
 inline bool sameQuery(const Query& a, const Query& b) {
   return a.lat == b.lat && a.lon == b.lon &&
-         a.radius_km == b.radius_km && a.labels == b.labels;
+         a.radius_km == b.radius_km;
 }
 
 /** Main-loop-only API: one queued/in-flight request maximum. */

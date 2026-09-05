@@ -9,9 +9,11 @@ It is a tester build, not an official MatixYo release. Use a trusted copy.
 4. With USB unplugged, hold the radar's range/BOOT button, connect USB, then
    release it. The display may stay blank. Do not hold BOOT on a powered radar:
    the running firmware treats a long hold as a settings reset.
-5. Windows: double-click Start-Windows.cmd.
-   macOS: open Terminal in this extracted folder and run:
+5. macOS DMG: Control-click Plane Radar Installer, choose Open, then Open.
+   The app copies itself to Documents/Plane Radar Installer and opens Terminal.
+   macOS ZIP fallback: open Terminal in this extracted folder and run:
      sh Start-Mac.command
+   Windows: double-click Start-Windows.cmd.
    Linux: the same shell launcher can be used; serial-port permissions apply.
 6. Choose the USB port. The installer checks hardware, backs up ALL 4 MB,
    checks the partition layout, and asks you to type UPGRADE before writing.

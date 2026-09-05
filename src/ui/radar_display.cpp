@@ -35,6 +35,7 @@ namespace {
 
 uint32_t s_sweep_frames = 0;
 uint32_t s_sweep_max_gap_ms = 0;
+uint16_t s_rendered_label_mask = 0;
 bool s_label_metrics_ready = false;
 bool s_cardinal_use_vlw = false;
 bool s_scale_use_vlw = false;
@@ -392,21 +393,23 @@ void applyTagStyle() {
   }
 }
 
-int measureTagBlockWidth(const services::adsb::Aircraft& plane) {
+int measureTagBlockWidth(const services::adsb::AircraftLabels& labels) {
   applyTagStyle();
   int max_w = 0;
-  for (uint8_t i = 0; i < plane.labels.count; ++i)
-    max_w = std::max(max_w, static_cast<int>(s_draw->textWidth(plane.labels.lines[i].text)));
+  for (uint8_t i = 0; i < labels.count; ++i)
+    max_w = std::max(max_w, static_cast<int>(s_draw->textWidth(labels.lines[i].text)));
   return max_w;
 }
 
 void drawAircraftTag(int x, int y, const services::adsb::Aircraft& plane) {
+  services::adsb::AircraftLabels labels;
+  services::adsb::formatAircraftLabels(plane.labels, radar::labelMask(), labels);
   initTagLabelMetrics();
   applyTagStyle();
 
   const int line_h = s_draw->fontHeight();
-  const int block_w = measureTagBlockWidth(plane);
-  const int line_count = plane.labels.count;
+  const int block_w = measureTagBlockWidth(labels);
+  const int line_count = labels.count;
   if (line_count == 0) {
     return;
   }
@@ -429,8 +432,8 @@ void drawAircraftTag(int x, int y, const services::adsb::Aircraft& plane) {
   }
   ly = std::max(1, std::min(ly, radar::kSize - block_h - 1));
 
-  for (uint8_t i = 0; i < plane.labels.count; ++i) {
-    const auto& line = plane.labels.lines[i];
+  for (uint8_t i = 0; i < labels.count; ++i) {
+    const auto& line = labels.lines[i];
     uint16_t color = radar::kColorLabel;
     if (line.kind == services::adsb::Label::AircraftType) color = radar::kColorTagType;
     if (line.kind == services::adsb::Label::Altitude) color = radar::kColorTagAltitude;
@@ -701,6 +704,7 @@ void renderFrame() {
     drawAircraft();
   }
   s_frame.pushSprite(0, 0);
+  s_rendered_label_mask = radar::labelMask();
   tft.setTextDatum(textdatum_t::top_left);
 }
 
@@ -724,6 +728,7 @@ void radarDisplayAnimate() {
 
 uint32_t sweepFrameCount() { return s_sweep_frames; }
 uint32_t sweepMaxGapMs() { return s_sweep_max_gap_ms; }
+uint16_t renderedLabelMask() { return s_rendered_label_mask; }
 
 void radarDisplayDraw() {
   initPalette();
@@ -738,6 +743,7 @@ void radarDisplayDraw() {
   const DrawScope scope(tft);
   drawStaticGrid(tft);
   drawAircraft();
+  s_rendered_label_mask = radar::labelMask();
   tft.setTextDatum(textdatum_t::top_left);
 }
 

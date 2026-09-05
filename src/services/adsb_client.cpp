@@ -235,7 +235,7 @@ bool fetchUpdate(const Query& query, size_t& count) {
     s_pending[n].nose_deg = pickNoseHeading(plane);
     s_pending[n].track_deg = pickTrackHeading(plane);
     s_pending[n].gs_knots = pickGroundSpeed(plane);
-    formatAircraftLabels(plane, query.labels, s_pending[n].labels);
+    readAircraftLabelData(plane, s_pending[n].labels);
     ++n;
   }
 

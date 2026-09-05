@@ -31,53 +31,44 @@ bool isEmergency(JsonObjectConst plane) {
   return strcmp(squawk, "7500") == 0 || strcmp(squawk, "7600") == 0 ||
          strcmp(squawk, "7700") == 0;
 }
-void formatLabel(JsonObjectConst plane, Label label, char* text, size_t size) {
+void formatLabel(const AircraftLabelData& plane, Label label, char* text, size_t size) {
   text[0] = '\0';
-  double value = 0;
   switch (label) {
     case Label::Callsign:
-      copyText(plane["flight"], text, size);
-      if (!text[0]) copyText(plane["hex"], text, size);
+      snprintf(text, size, "%s", plane.callsign);
       break;
-    case Label::AircraftType: copyText(plane["t"], text, size); break;
-    case Label::Registration: copyText(plane["r"], text, size); break;
+    case Label::AircraftType: snprintf(text, size, "%s", plane.aircraftType); break;
+    case Label::Registration: snprintf(text, size, "%s", plane.registration); break;
     case Label::Altitude:
-      if (strcmp(plane["alt_baro"] | "", "ground") == 0) {
+      if (plane.ground) {
         snprintf(text, size, "GND");
-      } else if (number(plane["alt_baro"], value) || number(plane["alt_geom"], value)) {
-        if (value >= -2000 && value <= 200000) snprintf(text, size, "%.0f ft", value);
+      } else if (std::isfinite(plane.altitude)) {
+        snprintf(text, size, "%.0f ft", plane.altitude);
       }
       break;
     case Label::GroundSpeed:
       // Airspeed is not a substitute for ground speed.
-      if (number(plane["gs"], value) && value >= 0 && value <= 10000)
-        snprintf(text, size, "%.0f kt", value);
+      if (std::isfinite(plane.groundSpeed))
+        snprintf(text, size, "%.0f kt", plane.groundSpeed);
       break;
     case Label::VerticalRate:
-      if (number(plane["baro_rate"], value) || number(plane["geom_rate"], value))
-        if (std::abs(value) <= 100000) snprintf(text, size, "%+.0f ft/m", value);
+      if (std::isfinite(plane.verticalRate))
+        snprintf(text, size, "%+.0f ft/m", plane.verticalRate);
       break;
     case Label::Squawk: {
-      char code[8] = {};
-      copyText(plane["squawk"], code, sizeof(code));
+      const char* code = plane.squawk;
       if (code[0]) snprintf(text, size, "SQ %s", code);
       break;
     }
     case Label::Category: {
-      char code[4] = {};
-      copyText(plane["category"], code, sizeof(code));
+      const char* code = plane.category;
       if (code[0]) snprintf(text, size, "CAT %s", code);
       break;
     }
     case Label::Navigation: {
-      const char* names[] = {"autopilot", "althold", "lnav", "vnav", "approach", "tcas"};
       const char* flags[] = {"AP", "ALT", "LNAV", "VNAV", "APP", "TCAS"};
-      const JsonArrayConst modes = plane["nav_modes"].as<JsonArrayConst>();
       for (size_t i = 0; i < 6; ++i) {
-        bool found = false;
-        for (JsonVariantConst mode : modes)
-          if (strcmp(mode | "", names[i]) == 0) found = true;
-        if (!found) continue;
+        if (!(plane.navigation & (1U << i))) continue;
         const size_t used = strlen(text);
         // Reserve room for a '+' when more modes cannot fit.
         if (used + strlen(flags[i]) + (used ? 1 : 0) + 2 > size) {
@@ -89,16 +80,16 @@ void formatLabel(JsonObjectConst plane, Label label, char* text, size_t size) {
       break;
     }
     case Label::Military:
-      if ((plane["dbFlags"].as<unsigned>() & 1U) != 0) snprintf(text, size, "MIL");
+      if (plane.military) snprintf(text, size, "MIL");
       break;
     default: break;
   }
 }
 }  // namespace
 
-void formatAircraftLabels(JsonObjectConst plane, uint16_t mask, AircraftLabels& out) {
+void formatAircraftLabels(const AircraftLabelData& plane, uint16_t mask, AircraftLabels& out) {
   out = {};
-  out.emergency = isEmergency(plane);
+  out.emergency = plane.emergency;
   if (!validLabelMask(mask)) return;
   for (uint8_t i = 0; i < kLabelCount && out.count < kMaxLabels; ++i) {
     const Label label = static_cast<Label>(i);
@@ -108,5 +99,36 @@ void formatAircraftLabels(JsonObjectConst plane, uint16_t mask, AircraftLabels& 
     formatLabel(plane, label, line.text, sizeof(line.text));
     if (line.text[0]) ++out.count;
   }
+}
+
+void readAircraftLabelData(JsonObjectConst plane, AircraftLabelData& out) {
+  out = {};
+  out.altitude = out.groundSpeed = out.verticalRate = NAN;
+  copyText(plane["flight"], out.callsign, sizeof(out.callsign));
+  if (!out.callsign[0]) copyText(plane["hex"], out.callsign, sizeof(out.callsign));
+  copyText(plane["t"], out.aircraftType, sizeof(out.aircraftType));
+  copyText(plane["r"], out.registration, sizeof(out.registration));
+  copyText(plane["squawk"], out.squawk, sizeof(out.squawk));
+  copyText(plane["category"], out.category, sizeof(out.category));
+  out.ground = strcmp(plane["alt_baro"] | "", "ground") == 0;
+  out.emergency = isEmergency(plane);
+  out.military = (plane["dbFlags"].as<unsigned>() & 1U) != 0;
+  double value = 0;
+  if ((number(plane["alt_baro"], value) || number(plane["alt_geom"], value)) &&
+      value >= -2000 && value <= 200000) out.altitude = value;
+  if (number(plane["gs"], value) && value >= 0 && value <= 10000)
+    out.groundSpeed = value;
+  if ((number(plane["baro_rate"], value) || number(plane["geom_rate"], value)) &&
+      std::abs(value) <= 100000) out.verticalRate = value;
+  const char* names[] = {"autopilot", "althold", "lnav", "vnav", "approach", "tcas"};
+  for (JsonVariantConst mode : plane["nav_modes"].as<JsonArrayConst>())
+    for (uint8_t i = 0; i < 6; ++i)
+      if (strcmp(mode | "", names[i]) == 0) out.navigation |= 1U << i;
+}
+
+void formatAircraftLabels(JsonObjectConst plane, uint16_t mask, AircraftLabels& out) {
+  AircraftLabelData data;
+  readAircraftLabelData(plane, data);
+  formatAircraftLabels(data, mask, out);
 }
 }  // namespace services::adsb
