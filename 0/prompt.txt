@@ -1,0 +1,7 @@
+<environment_context>
+  <cwd>/Users/scott/Documents/github/lil-desk-radar</cwd>
+  <shell>zsh</shell>
+  <current_date>2026-09-02</current_date>
+  <timezone>Europe/London</timezone>
+  <filesystem><workspace_roots><root>/Users/scott/Documents/github/lil-desk-radar</root><root>/Users/scott/.codex/visualizations/2026/09/02/01a06163-0bd8-7ae2-9adc-5563419ee1f8</root></workspace_roots><permission_profile type="managed"><file_system type="restricted"><entry access="read"><special>:root</special></entry><entry access="read"><path>/Users/scott/Documents/github/lil-desk-radar</path></entry><entry access="read"><path>/Users/scott/.codex/visualizations/2026/09/02/01a06163-0bd8-7ae2-9adc-5563419ee1f8</path></entry><entry access="read"><special>:slash_tmp</special></entry><entry access="read"><special>:tmpdir</special></entry><entry access="read"><path>/Users/scott/Documents/github/lil-desk-radar/.git</path></entry><entry access="read"><path>/Users/scott/.codex/visualizations/2026/09/02/01a06163-0bd8-7ae2-9adc-5563419ee1f8/.git</path></entry><entry access="read"><path>/Users/scott/Documents/github/lil-desk-radar/.agents</path></entry><entry access="read"><path>/Users/scott/.codex/visualizations/2026/09/02/01a06163-0bd8-7ae2-9adc-5563419ee1f8/.agents</path></entry><entry access="read"><path>/Users/scott/Documents/github/lil-desk-radar/.codex</path></entry><entry access="read"><path>/Users/scott/.codex/visualizations/2026/09/02/01a06163-0bd8-7ae2-9adc-5563419ee1f8/.codex</path></entry></file_system></permission_profile></filesystem>
+</environment_context>
