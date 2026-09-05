@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <esp_mac.h>
 
 #include "config.h"
 #include "hardware/display.h"
@@ -19,12 +20,21 @@
 namespace {
 
 bool g_radar_visible = false;
+bool g_identity_visible = false;
+unsigned long g_identity_until_ms = 0;
 unsigned long g_wifi_down_since = 0;
 unsigned long g_last_reconnect_ms = 0;
 unsigned long g_last_adsb_fetch_ms = 0;
 
 void pollBackground() {
   wifiLoop();
+  if (g_identity_visible) {
+    if (static_cast<long>(millis() - g_identity_until_ms) < 0) return;
+    g_identity_visible = false;
+    if (g_radar_visible && WiFi.status() == WL_CONNECTED) {
+      ui::radarDisplayDraw();
+    }
+  }
   if (g_radar_visible && WiFi.status() == WL_CONNECTED &&
       !services::web::updateInProgress()) {
     if (services::web::consumeDisplayRefreshRequest()) {
@@ -50,14 +60,42 @@ void onRangeTap() {
   Serial.printf("Range: %s (outer ~%.0f km)\n", range_label,
                 ui::radar::rangeCurrent().outer_km);
 
-  if (g_radar_visible && WiFi.status() == WL_CONNECTED) {
+  if (g_radar_visible && !g_identity_visible &&
+      WiFi.status() == WL_CONNECTED) {
     ui::radarDisplayDraw();
   }
 }
 
+void showDeviceIdentity() {
+  uint8_t mac[6] = {};
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  char device_id[5];
+  snprintf(device_id, sizeof(device_id), "%02X%02X", mac[4], mac[5]);
+  const String ip = WiFi.status() == WL_CONNECTED
+                        ? WiFi.localIP().toString()
+                        : String("Not connected");
+  statusScreenDeviceIdentity(device_id, ip.c_str());
+  g_identity_visible = true;
+  g_identity_until_ms = millis() + config::kIdentityScreenMs;
+  Serial.printf("Device identity: Plane Radar %s, IP %s\n", device_id,
+                ip.c_str());
+}
+
 void handleBootButton() {
+  static uint8_t rapid_taps = 0;
+  static unsigned long last_tap_ms = 0;
   bootButtonPollLongPress();
   if (bootButtonConsumeTap()) {
+    const unsigned long now = millis();
+    rapid_taps = rapid_taps > 0 && now - last_tap_ms <= config::kIdentityTapGapMs
+                     ? rapid_taps + 1
+                     : 1;
+    last_tap_ms = now;
+    if (rapid_taps >= 5) {
+      rapid_taps = 0;
+      showDeviceIdentity();
+      return;
+    }
     onRangeTap();
   }
 }
@@ -96,7 +134,7 @@ void loop() {
   pollBackground();
   const bool new_aircraft = services::adsb::applyUpdate(currentQuery());
   if (new_aircraft && g_radar_visible && WiFi.status() == WL_CONNECTED &&
-      !services::web::updateInProgress()) {
+      !g_identity_visible && !services::web::updateInProgress()) {
     ui::radarDisplayRefreshAircraft();
   }
 

@@ -239,3 +239,17 @@ void statusScreenWifiReset() {
   drawTextBlock(config::kColorYellow, config::kTextOnYellow, lines,
                 sizeof(lines) / sizeof(lines[0]));
 }
+
+void statusScreenDeviceIdentity(const char* device_id, const char* ip_address) {
+  char name[24];
+  snprintf(name, sizeof(name), "Plane Radar %s", device_id);
+  const TextLine lines[] = {
+      {name, 1.15f, &kPortalGfxTitle},
+      {"Device ID", 0.95f, &kGfxBody},
+      {device_id, 1.35f, &kPortalGfxEmphasis},
+      {"IP address", 0.95f, &kGfxBody},
+      {ip_address, 1.05f, &kPortalGfxBody},
+  };
+  drawTextBlock(config::kColorBlack, config::kTextOnBlack, lines,
+                sizeof(lines) / sizeof(lines[0]));
+}

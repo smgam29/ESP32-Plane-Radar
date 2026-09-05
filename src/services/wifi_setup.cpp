@@ -21,7 +21,7 @@
 #include "ui/status_screens.h"
 
 portMUX_TYPE s_boot_mux = portMUX_INITIALIZER_UNLOCKED;
-volatile bool s_boot_tap_pending = false;
+volatile uint8_t s_boot_taps_pending = 0;
 volatile bool s_boot_is_down = false;
 volatile unsigned long s_boot_down_ms = 0;
 bool s_long_press_handled = false;
@@ -37,7 +37,9 @@ void IRAM_ATTR onBootButtonIsr() {
   } else if (s_boot_is_down) {
     const unsigned long held = now - s_boot_down_ms;
     if (held >= config::kBootTapMinMs && held < config::kBootResetHoldMs) {
-      s_boot_tap_pending = true;
+      if (s_boot_taps_pending < UINT8_MAX) {
+        ++s_boot_taps_pending;
+      }
     }
     s_boot_is_down = false;
   }
@@ -400,10 +402,8 @@ void bootButtonInit() { initBootButton(); }
 
 bool bootButtonConsumeTap() {
   portENTER_CRITICAL(&s_boot_mux);
-  const bool tap = s_boot_tap_pending;
-  if (tap) {
-    s_boot_tap_pending = false;
-  }
+  const bool tap = s_boot_taps_pending > 0;
+  if (tap) --s_boot_taps_pending;
   portEXIT_CRITICAL(&s_boot_mux);
   return tap;
 }
