@@ -24,13 +24,11 @@ unsigned long g_last_reconnect_ms = 0;
 unsigned long g_last_adsb_fetch_ms = 0;
 
 void pollBackground() {
-  static uint16_t last_label_mask = ui::radar::labelMask();
   wifiLoop();
   if (g_radar_visible && WiFi.status() == WL_CONNECTED &&
       !services::web::updateInProgress()) {
-    if (last_label_mask != ui::radar::labelMask()) {
-      last_label_mask = ui::radar::labelMask();
-      ui::radarDisplayRefreshAircraft();
+    if (services::web::consumeDisplayRefreshRequest()) {
+      ui::radarDisplayDraw();
     }
     ui::radarDisplayAnimate();
   }

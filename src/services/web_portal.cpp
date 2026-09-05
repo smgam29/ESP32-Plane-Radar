@@ -256,6 +256,7 @@ bool s_update_in_progress = false;
 bool s_update_started = false;
 bool s_update_failed = false;
 bool s_reboot_pending = false;
+bool s_display_refresh_pending = false;
 unsigned long s_reboot_at_ms = 0;
 char s_update_message[128] = "No firmware upload received.";
 
@@ -402,6 +403,7 @@ void sendOrientationResult(WebServer& server) {
     return;
   }
   server.sendHeader("Cache-Control", "no-store");
+  s_display_refresh_pending = true;
   server.send(200, "application/json",
               "{\"ok\":true,\"message\":\"Orientation saved.\"}");
 }
@@ -426,6 +428,7 @@ void sendLocationResult(WebServer& server) {
            "\"lat\":\"%.6f\",\"lon\":\"%.6f\"}",
            services::location::lat(), services::location::lon());
   server.sendHeader("Cache-Control", "no-store");
+  s_display_refresh_pending = true;
   server.send(200, "application/json", response);
 }
 
@@ -534,6 +537,7 @@ void sendAirportLocationResult(WebServer& server) {
            airport->ident, airport->ident, services::location::lat(),
            services::location::lon());
   server.sendHeader("Cache-Control", "no-store");
+  s_display_refresh_pending = true;
   server.send(200, "application/json", response);
 }
 
@@ -552,6 +556,7 @@ void sendSweepResult(WebServer& server) {
     return;
   }
   server.sendHeader("Cache-Control", "no-store");
+  s_display_refresh_pending = true;
   server.send(200, "application/json", "{\"ok\":true,\"message\":\"Sweep saved.\"}");
 }
 
@@ -573,6 +578,7 @@ void sendAppearanceResult(WebServer& server) {
     return;
   }
   server.sendHeader("Cache-Control", "no-store");
+  s_display_refresh_pending = true;
   server.send(200, "application/json",
               "{\"ok\":true,\"message\":\"Appearance saved.\"}");
 }
@@ -611,6 +617,7 @@ void sendLabelsResult(WebServer& server) {
     return;
   }
   server.sendHeader("Cache-Control", "no-store");
+  s_display_refresh_pending = true;
   server.send(200, "application/json",
               "{\"ok\":true,\"message\":\"Plane labels saved.\"}");
 }
@@ -631,6 +638,7 @@ void sendAirportsResult(WebServer& server) {
   }
   ui::radar::saveAirportOverlay(runways, labels);
   server.sendHeader("Cache-Control", "no-store");
+  s_display_refresh_pending = true;
   server.send(200, "application/json",
               "{\"ok\":true,\"message\":\"Airport settings saved.\"}");
 }
@@ -678,6 +686,12 @@ void attach(WiFiManager& wifi_manager) {
 }
 
 bool updateInProgress() { return s_update_in_progress; }
+
+bool consumeDisplayRefreshRequest() {
+  const bool pending = s_display_refresh_pending;
+  s_display_refresh_pending = false;
+  return pending;
+}
 
 void loop() {
   if (s_reboot_pending &&

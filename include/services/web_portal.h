@@ -8,6 +8,8 @@ namespace services::web {
 void attach(WiFiManager& wifi_manager);
 /** True from upload start until failure cleanup or successful reboot. */
 bool updateInProgress();
+/** Consume a one-shot redraw request raised by a successful settings save. */
+bool consumeDisplayRefreshRequest();
 /** Complete deferred actions such as rebooting after the HTTP response is sent. */
 void loop();
 
