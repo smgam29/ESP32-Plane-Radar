@@ -15,7 +15,7 @@ class MacInstallerTests(unittest.TestCase):
                         launcher.index("command -v python3"))
         self.assertIn("sys.version_info >= (3, 9)", launcher)
         self.assertIn("venv --clear", launcher)
-        self.assertIn("--only-binary=:all:", launcher)
+        self.assertIn("--only-binary=cryptography,cffi", launcher)
 
     def test_app_contains_executable_launcher_and_complete_payload(self):
         with tempfile.TemporaryDirectory() as temporary:

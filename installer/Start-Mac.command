@@ -25,5 +25,5 @@ if [ ! -x .venv/bin/python ] ||
   "$PYTHON" -m venv --clear .venv
 fi
 .venv/bin/python -m pip install --upgrade 'pip<26'
-.venv/bin/python -m pip install --only-binary=:all: -r requirements.txt
+.venv/bin/python -m pip install --only-binary=cryptography,cffi -r requirements.txt
 .venv/bin/python upgrade.py "$@"
