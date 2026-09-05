@@ -23,6 +23,15 @@ def table(entries):
 
 
 class InstallerTests(unittest.TestCase):
+    def test_full_backup_uses_reliable_baud_only(self):
+        self.assertEqual(upgrade.operation_baud(
+            ["read_flash", "--no-progress", "0", hex(upgrade.FLASH_SIZE), "backup.bin"]),
+            "115200")
+        self.assertEqual(upgrade.operation_baud(
+            ["read_flash", hex(upgrade.NVS_START), hex(upgrade.NVS_SIZE), "nvs.bin"]),
+            "460800")
+        self.assertEqual(upgrade.operation_baud(["write_flash"]), "460800")
+
     def test_layouts_match_authoritative_csvs(self):
         kinds = {"data": 1, "app": 0}
         subtypes = {"nvs": 2, "ota": 0, "ota_0": 0x10, "ota_1": 0x11,
@@ -71,8 +80,9 @@ class InstallerTests(unittest.TestCase):
         if command == "get_security_info":
             return "Flags: 0x00000000\nFlash_Crypt_Cnt: 0x0"
         if command == "read_flash":
-            start, length = int(args[1], 0), int(args[2], 0)
-            Path(args[3]).write_bytes(self.flash[start:start + length])
+            values = [arg for arg in args[1:] if arg != "--no-progress"]
+            start, length = int(values[0], 0), int(values[1], 0)
+            Path(values[2]).write_bytes(self.flash[start:start + length])
         elif command == "write_flash":
             self.assertNotIn("erase_flash", args)
             self.assertNotIn("--force", args)

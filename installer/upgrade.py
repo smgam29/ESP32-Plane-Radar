@@ -91,14 +91,25 @@ def validate_package(root=ROOT):
     return manifest
 
 
+def operation_baud(args):
+    read_values = [arg for arg in args[1:] if arg != "--no-progress"]
+    full_backup = (args[0] == "read_flash" and len(read_values) >= 2 and
+                   read_values[0] == "0" and int(read_values[1], 0) == FLASH_SIZE)
+    return "115200" if full_backup else "460800"
+
+
 def tool(port, args, first=False):
+    baud = operation_baud(args)
+    full_backup = baud == "115200"
     command = [sys.executable, "-m", "esptool", "--chip", "esp32c3",
-               "--port", port, "--baud", "460800", "--before",
+               "--port", port, "--baud", baud, "--before",
                "default_reset" if first else "no_reset", "--after", "no_reset"] + args
     labels = {"flash_id": "Connecting to the radar", "get_security_info": "Checking device security",
               "read_flash": "Reading and safeguarding flash", "write_flash": "Installing firmware",
               "verify_flash": "Verifying written firmware"}
     label = labels.get(args[0], "Communicating with the radar")
+    if full_backup:
+        label += " (safe speed; usually 5-7 minutes)"
     print(f"\n==> {label}", flush=True)
     frames = "|/-\\"
     started = time.monotonic()
@@ -174,7 +185,7 @@ def backup_device(port, mac):
     folder = ROOT / "backups" / (mac.replace(":", "") + "-" + stamp)
     folder.mkdir(parents=True, exist_ok=False, mode=0o700)
     image = folder / "original-4mb.bin"
-    tool(port, ["read_flash", "0", hex(FLASH_SIZE), str(image)])
+    tool(port, ["read_flash", "--no-progress", "0", hex(FLASH_SIZE), str(image)])
     image.chmod(0o600)
     data = image.read_bytes()
     if len(data) != FLASH_SIZE:
