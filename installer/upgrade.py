@@ -220,7 +220,11 @@ def upgrade(port, manifest):
     if check.read_bytes() != data[NVS_START:NVS_START + NVS_SIZE]:
         raise RuntimeError("NVS verification failed. Keep both backups and contact the maintainer before proceeding.")
     print("SUCCESS: firmware verified; NVS settings are byte-for-byte unchanged.")
-    print("Unplug USB, release BOOT, and reconnect normally. Open http://plane-radar.local")
+    print("\n============================================================")
+    print(" ACTION REQUIRED: UNPLUG THE USB CABLE, THEN PLUG IT BACK IN")
+    print(" Make sure the BOOT button is released before reconnecting.")
+    print("============================================================")
+    print("After reconnecting, open http://plane-radar.local")
     print("Confirm the version and radar operation. Keep your private backup for recovery.")
 
 
