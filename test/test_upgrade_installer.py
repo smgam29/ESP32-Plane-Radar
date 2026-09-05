@@ -87,7 +87,7 @@ class InstallerTests(unittest.TestCase):
                 self.assertEqual(self.flash[start:start + len(data)], data)
         return "OK"
 
-    def run_upgrade(self, answer="UPGRADE"):
+    def run_upgrade(self, answer="y"):
         with patch.object(upgrade, "ROOT", self.root), patch.object(upgrade, "tool", self.tool), patch("builtins.input", return_value=answer):
             upgrade.upgrade("TEST-PORT", upgrade.validate_package(self.root))
 
@@ -97,12 +97,12 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(upgrade.validate_layout(self.flash), "custom dual-slot")
         backup = next(self.root.glob("backups/*/original-4mb.bin"))
         self.assertEqual(backup.read_bytes(), self.original)
-        with patch.object(upgrade, "tool", self.tool), patch("builtins.input", return_value="RESTORE"):
+        with patch.object(upgrade, "tool", self.tool), patch("builtins.input", return_value="y"):
             upgrade.restore("TEST-PORT", backup)
         self.assertEqual(self.flash, self.original)
 
     def test_cancel_never_writes(self):
-        self.run_upgrade("")
+        self.run_upgrade("n")
         self.assertEqual(self.flash, self.original)
         self.assertFalse(any(c[0] == "write_flash" for c in self.calls))
 
@@ -153,7 +153,7 @@ class InstallerTests(unittest.TestCase):
                 self.flash[0:4096] = b"\xff" * 4096
                 raise RuntimeError("Simulated interrupted USB write")
             return self.tool(port, args, first)
-        with patch.object(upgrade, "ROOT", self.root), patch.object(upgrade, "tool", fail_write), patch("builtins.input", return_value="UPGRADE"), self.assertRaises(RuntimeError):
+        with patch.object(upgrade, "ROOT", self.root), patch.object(upgrade, "tool", fail_write), patch("builtins.input", return_value="y"), self.assertRaises(RuntimeError):
             upgrade.upgrade("TEST-PORT", self.manifest)
         backup = next(self.root.glob("backups/*/original-4mb.bin"))
         self.assertEqual(backup.read_bytes(), self.original)
@@ -173,8 +173,14 @@ class InstallerTests(unittest.TestCase):
             if args[0] == "verify_flash":
                 self.flash[0x9000] ^= 1
             return result
-        with patch.object(upgrade, "ROOT", self.root), patch.object(upgrade, "tool", corrupt_nvs), patch("builtins.input", return_value="UPGRADE"), self.assertRaisesRegex(RuntimeError, "NVS verification failed"):
+        with patch.object(upgrade, "ROOT", self.root), patch.object(upgrade, "tool", corrupt_nvs), patch("builtins.input", return_value="y"), self.assertRaisesRegex(RuntimeError, "NVS verification failed"):
             upgrade.upgrade("TEST-PORT", self.manifest)
+
+    def test_confirmation_reprompts_until_y_or_n(self):
+        with patch("builtins.input", side_effect=["", "maybe", "Y"]):
+            self.assertTrue(upgrade.confirm("Continue?"))
+        with patch("builtins.input", return_value="NO"):
+            self.assertFalse(upgrade.confirm("Continue?"))
 
 
 if __name__ == "__main__":

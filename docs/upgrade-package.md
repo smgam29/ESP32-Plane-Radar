@@ -40,14 +40,14 @@ never uses `erase_flash`, `--erase-all`, or `--force`. It validates sector-round
 write boundaries as well as byte lengths so no image can erase NVS.
 
 Sequence: validate package -> identify chip/flash/security -> full 4 MB backup ->
-validate existing table and MD5 -> user types UPGRADE -> split write -> verify
+validate existing table and MD5 -> explicit y/n confirmation -> split write -> verify
 firmware -> reread and compare NVS -> user power-cycles normally. All flashing
 commands leave the chip in download mode until validation is complete. A backup
 and matching metadata must be retained privately; they contain Wi-Fi credentials.
 
 The initial partition migration is not power-fail atomic. Recovery uses
 `--restore` with that same device's full backup, checks its SHA-256 and MAC,
-requires RESTORE, writes all flash and verifies it. Incomplete writes never
+asks y/n, writes all flash after y, and verifies it. Incomplete writes never
 overwrite the saved backup. Later OTA uses the two application slots; this does
 not imply automatic runtime rollback for a logically broken firmware build.
 

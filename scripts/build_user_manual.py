@@ -173,7 +173,7 @@ def build(version, output):
       p("Wi-Fi and radar settings links", HEAD),
       p("The bottom links open WiFiManager pages. <b>Wi-Fi setup</b> changes network credentials. <b>Radar settings</b> exposes the legacy location, miles/km and runway controls. Prefer the main portal cards for the newer display options."),
       p("Firmware update over Wi-Fi", HEAD),
-      p("Download the newer <b>*-ota.bin</b> or application <b>firmware.bin</b> from the custom project's trusted release. In Firmware, choose it and press <b>Install update</b>. Keep power and Wi-Fi stable while progress advances. A successful upload writes the inactive application slot, reboots, and then reports the new version."),
+      p("Download the newer <b>*-ota.bin</b> or application <b>firmware.bin</b> from the custom project's trusted release. In Firmware, choose it and press <b>Install update</b>. Keep power and Wi-Fi stable while progress advances. A successful upload writes the inactive application slot, reboots, and then reports the new version. The one-time Mac USB installer uses an animated ASCII indicator during long stages and an explicit <b>y/n</b> confirmation before writing."),
       box("Upload only the OTA/application file. Never upload a factory, merged, bootloader, partitions or private backup file through the web portal.", WARM),
       p("Troubleshooting", HEAD),
       rows([("No aircraft", "Confirm Wi-Fi shows Connected, the radar location is correct, and the internet connection works. The public feed may occasionally be unavailable."),

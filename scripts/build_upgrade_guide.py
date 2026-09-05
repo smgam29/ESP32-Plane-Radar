@@ -83,7 +83,7 @@ def build(version, output):
         p("<b>Windows:</b> double-click <b>Start-Windows.cmd</b> in the extracted folder. Read the terminal window; do not close it during flashing."),
         p("Choose the radar's USB serial port from the numbered list. Windows usually shows COM followed by a number; macOS usually shows /dev/cu.usbmodem... .", SMALL),
         p("4  Back up, confirm, then leave it connected", HEAD),
-        p("The tool checks the chip and 4 MB flash, reads a <b>complete private backup</b>, and checks the existing partition layout. Only then does it ask you to type <b>UPGRADE</b>. Press Enter without typing it to cancel without writing flash."),
+        p("The tool checks the chip and 4 MB flash, reads a <b>complete private backup</b>, and checks the existing partition layout. An animated ASCII symbol and elapsed time show that long USB stages are active. Only then does it ask: <b>Continue? [y/n]</b>. Press <b>y</b> to install or <b>n</b> to stop safely."),
         p("Wait for <b>SUCCESS: firmware verified; NVS settings are byte-for-byte unchanged.</b> The installer writes only four specified firmware areas - not the NVS area holding Wi-Fi and radar preferences."),
         box("<b>Do not unplug during writing.</b> This first USB layout migration is not power-fail atomic. A failure may need USB recovery from the backup. Never choose erase-all or substitute a merged/factory image.", WARM),
         PageBreak(),
@@ -105,7 +105,7 @@ def build(version, output):
         command('sh Start-Mac.command --restore "backups/DEVICE-TIME/original-4mb.bin"'),
         Spacer(1, 5), p("Windows - open Command Prompt in the extracted folder", SMALL),
         command('Start-Windows.cmd --restore "backups/DEVICE-TIME/original-4mb.bin"'),
-        p("Recovery checks the backup hash and device identity, then requires you to type <b>RESTORE</b>. It replaces all flash, including the original settings. After verification, unplug and reconnect with BOOT released.", SMALL),
+        p("Recovery checks the backup hash and device identity, then asks <b>[y/n]</b>. Choosing y replaces all flash, including the original settings. After verification, unplug and reconnect with BOOT released.", SMALL),
         p("Sources & support", HEAD),
         p("<link href='https://github.com/smgam29/ESP32-Plane-Radar' color='#087F79'>Custom firmware and issues</link> &nbsp; / &nbsp; <link href='https://github.com/MatixYo/ESP32-Plane-Radar' color='#087F79'>Original project by MatixYo</link> &nbsp; / &nbsp; <link href='https://docs.espressif.com/projects/esptool/en/latest/esp32c3/' color='#087F79'>Espressif USB flashing documentation</link>", SMALL),
     ]

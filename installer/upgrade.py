@@ -8,6 +8,8 @@ import re
 import struct
 import subprocess
 import sys
+import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -93,12 +95,30 @@ def tool(port, args, first=False):
     command = [sys.executable, "-m", "esptool", "--chip", "esp32c3",
                "--port", port, "--baud", "460800", "--before",
                "default_reset" if first else "no_reset", "--after", "no_reset"] + args
-    result = subprocess.run(command, text=True, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, timeout=900)
-    print(result.stdout, flush=True)
-    if result.returncode:
+    labels = {"flash_id": "Connecting to the radar", "get_security_info": "Checking device security",
+              "read_flash": "Reading and safeguarding flash", "write_flash": "Installing firmware",
+              "verify_flash": "Verifying written firmware"}
+    label = labels.get(args[0], "Communicating with the radar")
+    print(f"\n==> {label}", flush=True)
+    frames = "|/-\\"
+    started = time.monotonic()
+    with tempfile.TemporaryFile(mode="w+t") as log:
+        process = subprocess.Popen(command, text=True, stdout=log, stderr=subprocess.STDOUT)
+        while process.poll() is None:
+            elapsed = int(time.monotonic() - started)
+            print(f"\r    [{frames[elapsed % len(frames)]}] Working... {elapsed}s  ", end="", flush=True)
+            if elapsed >= 900:
+                process.terminate()
+                raise RuntimeError("USB operation timed out after 15 minutes.")
+            time.sleep(0.25)
+        log.seek(0)
+        output = log.read()
+    state = "OK" if process.returncode == 0 else "FAILED"
+    print(f"\r    [{state}] {label} ({int(time.monotonic() - started)}s)          ", flush=True)
+    if process.returncode:
+        print(output, flush=True)
         raise RuntimeError("USB operation failed. Keep the backup. Reconnect in BOOT mode and retry; do not erase all flash.")
-    return result.stdout
+    return output
 
 
 def inspect_device(port):
@@ -121,6 +141,10 @@ def choose_port():
     ports = sorted(comports(), key=lambda p: p.device)
     if not ports:
         raise ValueError("No serial ports. Use a data cable and enter BOOT mode, then retry.")
+    usb_ports = [port for port in ports if port.vid is not None]
+    if len(usb_ports) == 1:
+        print(f"Found radar USB port: {usb_ports[0].device} - {usb_ports[0].description}")
+        return usb_ports[0].device
     print("Select the radar's USB port (disconnect other ESP boards first):")
     for i, port in enumerate(ports, 1):
         print(f"  {i}. {port.device} - {port.description}")
@@ -128,6 +152,16 @@ def choose_port():
     if index < 0 or index >= len(ports):
         raise ValueError("Invalid port choice.")
     return ports[index].device
+
+
+def confirm(question):
+    while True:
+        answer = input(question + " [y/n]: ").strip().lower()
+        if answer in ("y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+        print("Please enter y for yes or n for no.")
 
 
 def flash_args(root):
@@ -153,12 +187,16 @@ def backup_device(port, mac):
 
 
 def upgrade(port, manifest):
+    print("\n========================================")
+    print(" PLANE RADAR - ORIGINAL FIRMWARE UPGRADE")
+    print("========================================")
+    print("Keep the USB cable connected. Animated symbols show that each stage is active.")
     mac = inspect_device(port)
     backup, data = backup_device(port, mac)
     print("Detected layout:", validate_layout(data))
     print(f"Target: Plane Radar {manifest['version']} on {mac}")
     print("Writes bootloader, partition table, OTA data and app. NVS is excluded.")
-    if input("Keep USB connected. Type UPGRADE to write, or Enter to cancel: ") != "UPGRADE":
+    if not confirm("Ready to install the custom firmware. Continue?"):
         print("Cancelled. No flash written. Unplug and reconnect USB to run the existing firmware.")
         return
     parts = flash_args(ROOT)
@@ -184,7 +222,7 @@ def restore(port, image):
     if mac != metadata["mac"]:
         raise ValueError("Backup belongs to a different device. Restore refused.")
     print("This restores ALL flash, including the original Wi-Fi/radar settings.")
-    if input("Type RESTORE to replace this device's flash, or Enter to cancel: ") != "RESTORE":
+    if not confirm("Restore this device from the selected full backup?"):
         print("Cancelled. Unplug and reconnect normally.")
         return
     tool(port, ["write_flash", "--flash_mode", "keep", "--flash_freq", "keep",
