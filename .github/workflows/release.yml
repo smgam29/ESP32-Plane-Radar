@@ -72,10 +72,14 @@ jobs:
           python3 scripts/build_upgrade_guide.py \
             --version "${VERSION}" \
             --output dist/Plane-Radar-Upgrade-Guide-A4.pdf
+          python3 scripts/build_user_manual.py \
+            --version "${VERSION}" \
+            --output dist/Plane-Radar-User-Manual-A4.pdf
           python3 scripts/build_upgrade_package.py \
             --version "${VERSION}" \
             --build-dir .pio/build/supermini \
             --guide dist/Plane-Radar-Upgrade-Guide-A4.pdf \
+            --manual dist/Plane-Radar-User-Manual-A4.pdf \
             --output-dir dist
 
       # build_upgrade_package always emits a portable .app.zip. A DMG is also

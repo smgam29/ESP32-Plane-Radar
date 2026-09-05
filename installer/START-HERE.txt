@@ -1,6 +1,7 @@
 PLANE RADAR - ORIGINAL FIRMWARE UPGRADE
 
-Read Upgrade-Guide-A4.pdf first. This is an ESP32-C3 / 4 MB / GC9A01 package.
+Read Upgrade-Guide-A4.pdf first. User-Manual-A4.pdf explains normal operation
+and every web-portal setting. This is an ESP32-C3 / 4 MB / GC9A01 package.
 It is a tester build, not an official MatixYo release. Use a trusted copy.
 
 1. Extract the ENTIRE ZIP to a writable folder. Do not run inside the ZIP.

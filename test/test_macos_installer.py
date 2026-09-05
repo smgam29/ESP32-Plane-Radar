@@ -26,6 +26,7 @@ class MacInstallerTests(unittest.TestCase):
             (package / "release.json").write_text(json.dumps({"version": "1.10.3-dev"}))
             (package / "upgrade.py").write_text("print('test')\n")
             (package / "Upgrade-Guide-A4.pdf").write_bytes(b"%PDF-test")
+            (package / "User-Manual-A4.pdf").write_bytes(b"%PDF-test")
             (package / "START-HERE.txt").write_text("Start here")
             with patch.object(build_macos_installer.shutil, "which", return_value=None):
                 archive = build_macos_installer.build(package, output)

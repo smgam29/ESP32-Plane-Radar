@@ -61,9 +61,11 @@ pio run -e supermini
 pio run -e supermini -t merge
 python3 -m pip install reportlab==4.4.9
 python3 scripts/build_upgrade_guide.py --version 1.10.3-dev
+python3 scripts/build_user_manual.py --version 1.10.3-dev
 python3 scripts/build_upgrade_package.py --version 1.10.3-dev \
   --build-dir .pio/build/supermini \
-  --guide output/pdf/Plane-Radar-Upgrade-Guide-A4.pdf --output-dir dist
+  --guide output/pdf/Plane-Radar-Upgrade-Guide-A4.pdf \
+  --manual output/pdf/Plane-Radar-User-Manual-A4.pdf --output-dir dist
 python3 -m unittest discover -s test -p 'test_upgrade_installer.py' -v
 ```
 

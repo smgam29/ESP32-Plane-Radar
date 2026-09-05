@@ -16,9 +16,10 @@ from installer.upgrade import PARTS, FLASH_SIZE, validate_package
 from scripts.build_macos_installer import build as build_macos_installer
 
 
-def build(version, build_dir, guide, output_dir):
-    if not guide.is_file() or guide.read_bytes()[:5] != b"%PDF-":
-        raise ValueError("A rendered A4 PDF guide is required.")
+def build(version, build_dir, guide, manual, output_dir):
+    if not guide.is_file() or guide.read_bytes()[:5] != b"%PDF-" or \
+       not manual.is_file() or manual.read_bytes()[:5] != b"%PDF-":
+        raise ValueError("Rendered A4 guide and user manual PDFs are required.")
     output_dir.mkdir(parents=True, exist_ok=True)
     name = "Plane-Radar-Upgrade-" + version
     if any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-" for c in version):
@@ -42,6 +43,7 @@ def build(version, build_dir, guide, output_dir):
             shutil.copyfile(REPO / "installer" / file, root / file)
         shutil.copyfile(REPO / "LICENSE", root / "LICENSE.txt")
         shutil.copyfile(guide, root / "Upgrade-Guide-A4.pdf")
+        shutil.copyfile(manual, root / "User-Manual-A4.pdf")
         validate_package(root)
         checksums = []
         for file in sorted(root.rglob("*")):
@@ -74,6 +76,7 @@ if __name__ == "__main__":
     parser.add_argument("--version", required=True)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--guide", type=Path, required=True)
+    parser.add_argument("--manual", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=Path("dist"))
     args = parser.parse_args()
-    build(args.version, args.build_dir, args.guide, args.output_dir)
+    build(args.version, args.build_dir, args.guide, args.manual, args.output_dir)

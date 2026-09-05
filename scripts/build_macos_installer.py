@@ -66,6 +66,8 @@ def build(package_root: Path, output_dir: Path):
             shutil.copytree(app, dmg_root / app.name)
             shutil.copyfile(package_root / "Upgrade-Guide-A4.pdf",
                             dmg_root / "Upgrade Guide.pdf")
+            shutil.copyfile(package_root / "User-Manual-A4.pdf",
+                            dmg_root / "User Manual.pdf")
             shutil.copyfile(package_root / "START-HERE.txt",
                             dmg_root / "START HERE.txt")
             subprocess.run(["hdiutil", "create", "-quiet", "-volname",
