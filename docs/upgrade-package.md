@@ -14,6 +14,8 @@ It is currently unsigned/unnotarized; first launch uses Control-click
 then Open. No source build, PlatformIO, merged/factory image or private device data is
 included. Python 3.11 is recommended. First launch downloads dependencies into
 the extracted folder's `.venv`; the firmware and serial migration are local.
+The uncluttered DMG shows only the installer app, upgrade guide and user manual;
+`START-HERE.txt` remains in the cross-platform ZIP for manual-launch users.
 
 The installer deliberately stops before writing if it does not recognise the
 hardware, security configuration, partition layout or image integrity. It is not

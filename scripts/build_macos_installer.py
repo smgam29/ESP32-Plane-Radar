@@ -68,8 +68,6 @@ def build(package_root: Path, output_dir: Path):
                             dmg_root / "Upgrade Guide.pdf")
             shutil.copyfile(package_root / "User-Manual-A4.pdf",
                             dmg_root / "User Manual.pdf")
-            shutil.copyfile(package_root / "START-HERE.txt",
-                            dmg_root / "START HERE.txt")
             subprocess.run(["hdiutil", "create", "-quiet", "-volname",
                             "Plane Radar Installer", "-srcfolder", str(dmg_root),
                             "-format", "UDZO", "-ov", str(dmg)], check=True)
