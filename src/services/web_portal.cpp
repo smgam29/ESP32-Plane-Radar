@@ -636,7 +636,11 @@ void sendAirportsResult(WebServer& server) {
                 "{\"ok\":false,\"message\":\"Invalid airport settings.\"}");
     return;
   }
-  ui::radar::saveAirportOverlay(runways, labels);
+  if (!ui::radar::saveAirportOverlay(runways, labels)) {
+    server.send(500, "application/json",
+                "{\"ok\":false,\"message\":\"Could not save airport settings.\"}");
+    return;
+  }
   server.sendHeader("Cache-Control", "no-store");
   s_display_refresh_pending = true;
   server.send(200, "application/json",

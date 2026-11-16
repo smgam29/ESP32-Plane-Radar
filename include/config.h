@@ -25,7 +25,8 @@ constexpr unsigned long kWifiReconnectIntervalMs = 15000;
 
 // --- BOOT button (ESP32-C3 Super Mini, active LOW) ---
 constexpr gpio_num_t kBootPin = GPIO_NUM_9;
-constexpr unsigned long kBootResetHoldMs = 3000UL;
+/** Hold to wipe Wi-Fi + radar NVS. Longer than a deliberate range tap sequence. */
+constexpr unsigned long kBootResetHoldMs = 8000UL;
 /** Ignore BOOT taps shorter than this (debounce). */
 constexpr unsigned long kBootTapMinMs = 40UL;
 /** Five taps with no gap longer than this show the device identity. */

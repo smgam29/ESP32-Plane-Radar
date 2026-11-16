@@ -26,6 +26,9 @@ volatile bool s_boot_is_down = false;
 volatile unsigned long s_boot_down_ms = 0;
 bool s_long_press_handled = false;
 bool s_boot_interrupt_attached = false;
+/** Long-press reset is ignored until BOOT has been seen released once after boot.
+ *  Prevents power-on / handling with the range button held from wiping NVS. */
+bool s_boot_reset_armed = false;
 
 void IRAM_ATTR onBootButtonIsr() {
   const bool down = digitalRead(config::kBootPin) == LOW;
@@ -184,7 +187,8 @@ void eraseWifiCredentials() {
   s_wm.resetSettings();
   s_wm.erase();
   WiFi.disconnect(true, true);
-  WiFi.persistent(false);
+  // Restore the default so later WiFi.begin() calls can persist credentials.
+  WiFi.persistent(true);
 
   WiFi.mode(WIFI_OFF);
   delay(100);
@@ -410,6 +414,11 @@ bool bootButtonConsumeTap() {
 
 void bootButtonPollLongPress() {
   if (wifiBootButtonPressed()) {
+    if (!s_boot_reset_armed) {
+      // Button already down at power-on or before a clean release: do not
+      // start the settings-wipe timer. Range taps still need a full press.
+      return;
+    }
     portENTER_CRITICAL(&s_boot_mux);
     if (!s_boot_is_down) {
       s_boot_is_down = true;
@@ -421,10 +430,11 @@ void bootButtonPollLongPress() {
     if (!s_long_press_handled &&
         millis() - down_ms >= config::kBootResetHoldMs) {
       s_long_press_handled = true;
-      Serial.println("BOOT held — resetting WiFi");
+      Serial.println("BOOT held — resetting WiFi and radar settings");
       wifiResetCredentialsAndReboot();
     }
   } else {
+    s_boot_reset_armed = true;
     portENTER_CRITICAL(&s_boot_mux);
     s_boot_is_down = false;
     portEXIT_CRITICAL(&s_boot_mux);

@@ -57,7 +57,7 @@ bool dimRings();
 bool saveDimRings(bool enabled);
 bool showRunways();
 bool showRunwayLabels();
-void saveAirportOverlay(bool runways, bool labels);
+bool saveAirportOverlay(bool runways, bool labels);
 bool showCallsign();
 bool showAircraftType();
 bool showAltitude();

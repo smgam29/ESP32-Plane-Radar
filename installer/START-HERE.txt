@@ -10,8 +10,8 @@ It is a tester build, not an official MatixYo release. Use a trusted copy.
    and python.org installs before any older Conda Python in your shell.
 3. Close serial monitors. Disconnect other ESP boards. Use a USB data cable.
 4. With USB unplugged, hold the radar's range/BOOT button, connect USB, then
-   release it. The display may stay blank. Do not hold BOOT on a powered radar:
-   the running firmware treats a long hold as a settings reset.
+   release it. The display may stay blank. On a powered radar, an 8-second hold
+   (after the button has been released once since boot) wipes saved settings.
 5. macOS DMG: Control-click Plane Radar Installer, choose Open, then Open.
    The app copies itself to Documents/Plane Radar Installer and opens Terminal.
    macOS ZIP fallback: open Terminal in this extracted folder and run:

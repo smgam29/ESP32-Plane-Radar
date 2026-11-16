@@ -30,7 +30,6 @@ constexpr uint8_t kAllLabels =
     kLabelCallsign | kLabelAircraftType | kLabelAltitude;
 constexpr float kKmPerMile = 1.609344f;
 
-Preferences s_prefs;
 uint8_t s_range_index = kDefaultRangeIndex;
 bool s_use_miles = false;
 bool s_dim_rings = false;
@@ -40,51 +39,76 @@ bool s_show_runway_labels = true;
 TopDirection s_top_direction = TopDirection::North;
 uint16_t s_label_mask = kAllLabels;
 
-void saveRangeIndex() {
-  if (!s_prefs.begin(kPrefsNamespace, false)) {
-    return;
+bool openPrefs(Preferences& prefs, bool read_only) {
+  if (prefs.begin(kPrefsNamespace, read_only)) {
+    return true;
   }
-  s_prefs.putUChar(kPrefsRangeKey, s_range_index);
-  s_prefs.end();
+  Serial.printf("planeradar: NVS open failed (%s)\n",
+                read_only ? "read" : "write");
+  return false;
 }
 
-void saveUseMiles() {
-  if (!s_prefs.begin(kPrefsNamespace, false)) {
-    return;
+bool saveRangeIndex() {
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
   }
-  s_prefs.putBool(kPrefsMilesKey, s_use_miles);
-  s_prefs.end();
+  const bool saved =
+      prefs.putUChar(kPrefsRangeKey, s_range_index) == sizeof(s_range_index);
+  prefs.end();
+  return saved;
 }
 
-void saveShowRunways() {
-  if (!s_prefs.begin(kPrefsNamespace, false)) {
-    return;
+bool saveUseMiles() {
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
   }
-  s_prefs.putBool(kPrefsRunwaysKey, s_show_runways);
-  s_prefs.end();
+  const bool saved = prefs.putBool(kPrefsMilesKey, s_use_miles) == 1;
+  prefs.end();
+  return saved;
 }
 
-void saveShowRunwayLabels() {
-  if (!s_prefs.begin(kPrefsNamespace, false)) {
-    return;
+bool saveShowRunways() {
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
   }
-  s_prefs.putBool(kPrefsRunwayLabelsKey, s_show_runway_labels);
-  s_prefs.end();
+  const bool saved = prefs.putBool(kPrefsRunwaysKey, s_show_runways) == 1;
+  prefs.end();
+  return saved;
 }
 
-void persistTopDirection() {
-  if (!s_prefs.begin(kPrefsNamespace, false)) {
-    return;
+bool saveShowRunwayLabels() {
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
   }
-  s_prefs.putUChar(kPrefsTopDirectionKey,
-                   static_cast<uint8_t>(s_top_direction));
-  s_prefs.end();
+  const bool saved =
+      prefs.putBool(kPrefsRunwayLabelsKey, s_show_runway_labels) == 1;
+  prefs.end();
+  return saved;
+}
+
+bool persistTopDirection() {
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
+  }
+  const uint8_t value = static_cast<uint8_t>(s_top_direction);
+  const bool saved = prefs.putUChar(kPrefsTopDirectionKey, value) == sizeof(value);
+  prefs.end();
+  return saved;
 }
 
 bool persistLabelMask(uint16_t mask) {
-  if (!s_prefs.begin(kPrefsNamespace, false)) return false;
-  const bool saved = s_prefs.putUShort(kPrefsLabelMaskV2Key, mask) == sizeof(mask);
-  s_prefs.end();
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
+  }
+  const bool saved =
+      prefs.putUShort(kPrefsLabelMaskV2Key, mask) == sizeof(mask);
+  prefs.end();
   return saved;
 }
 
@@ -103,32 +127,41 @@ bool portalCheckboxChecked(const char* value) {
 }  // namespace
 
 void rangeInit() {
-  if (!s_prefs.begin(kPrefsNamespace, true)) {
+  Preferences prefs;
+  if (!openPrefs(prefs, true)) {
+    Serial.println("planeradar: using defaults until settings are saved");
     return;
   }
-  const uint8_t saved = s_prefs.getUChar(kPrefsRangeKey, kDefaultRangeIndex);
+  const uint8_t saved = prefs.getUChar(kPrefsRangeKey, kDefaultRangeIndex);
   s_range_index =
       (saved < kRangePresetCount) ? saved : kDefaultRangeIndex;
-  s_use_miles = s_prefs.getBool(kPrefsMilesKey, false);
-  s_dim_rings = s_prefs.getBool(kPrefsDimRingsKey, false);
-  s_sweep_enabled = s_prefs.getBool(kPrefsSweepKey, false);
-  s_show_runways = s_prefs.getBool(kPrefsRunwaysKey, true);
-  s_show_runway_labels = s_prefs.getBool(kPrefsRunwayLabelsKey, true);
+  s_use_miles = prefs.getBool(kPrefsMilesKey, false);
+  s_dim_rings = prefs.getBool(kPrefsDimRingsKey, false);
+  s_sweep_enabled = prefs.getBool(kPrefsSweepKey, false);
+  s_show_runways = prefs.getBool(kPrefsRunwaysKey, true);
+  s_show_runway_labels = prefs.getBool(kPrefsRunwayLabelsKey, true);
   const uint8_t saved_direction =
-      s_prefs.getUChar(kPrefsTopDirectionKey,
-                       static_cast<uint8_t>(TopDirection::North));
+      prefs.getUChar(kPrefsTopDirectionKey,
+                     static_cast<uint8_t>(TopDirection::North));
   s_top_direction = saved_direction <= static_cast<uint8_t>(TopDirection::West)
                         ? static_cast<TopDirection>(saved_direction)
                         : TopDirection::North;
-  const uint16_t legacy = s_prefs.getUChar(kPrefsLabelMaskKey, kAllLabels) & kAllLabels;
-  const uint16_t saved_labels = s_prefs.getUShort(kPrefsLabelMaskV2Key, legacy);
+  const uint16_t legacy = prefs.getUChar(kPrefsLabelMaskKey, kAllLabels) & kAllLabels;
+  const uint16_t saved_labels = prefs.getUShort(kPrefsLabelMaskV2Key, legacy);
   s_label_mask = services::adsb::validLabelMask(saved_labels) ? saved_labels : legacy;
-  s_prefs.end();
+  prefs.end();
+  Serial.printf(
+      "planeradar: restored range=%u miles=%d dim=%d sweep=%d top=%s labels=%u\n",
+      s_range_index, s_use_miles ? 1 : 0, s_dim_rings ? 1 : 0,
+      s_sweep_enabled ? 1 : 0, topDirectionCode(),
+      static_cast<unsigned>(s_label_mask));
 }
 
 void rangeNext() {
   s_range_index = static_cast<uint8_t>((s_range_index + 1) % kRangePresetCount);
-  saveRangeIndex();
+  if (!saveRangeIndex()) {
+    Serial.println("planeradar: range index not persisted");
+  }
 }
 
 const RangePreset& rangeCurrent() { return kRangePresets[s_range_index]; }
@@ -147,20 +180,30 @@ bool useMiles() { return s_use_miles; }
 bool sweepEnabled() { return s_sweep_enabled; }
 
 bool saveSweepEnabled(bool enabled) {
-  if (!s_prefs.begin(kPrefsNamespace, false)) return false;
-  const bool saved = s_prefs.putBool(kPrefsSweepKey, enabled) == 1;
-  s_prefs.end();
-  if (saved) s_sweep_enabled = enabled;
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
+  }
+  const bool saved = prefs.putBool(kPrefsSweepKey, enabled) == 1;
+  prefs.end();
+  if (saved) {
+    s_sweep_enabled = enabled;
+  }
   return saved;
 }
 
 bool dimRings() { return s_dim_rings; }
 
 bool saveDimRings(bool enabled) {
-  if (!s_prefs.begin(kPrefsNamespace, false)) return false;
-  const bool saved = s_prefs.putBool(kPrefsDimRingsKey, enabled) == 1;
-  s_prefs.end();
-  if (saved) s_dim_rings = enabled;
+  Preferences prefs;
+  if (!openPrefs(prefs, false)) {
+    return false;
+  }
+  const bool saved = prefs.putBool(kPrefsDimRingsKey, enabled) == 1;
+  prefs.end();
+  if (saved) {
+    s_dim_rings = enabled;
+  }
   return saved;
 }
 
@@ -168,13 +211,20 @@ bool showRunways() { return s_show_runways; }
 
 bool showRunwayLabels() { return s_show_runway_labels; }
 
-void saveAirportOverlay(bool runways, bool labels) {
+bool saveAirportOverlay(bool runways, bool labels) {
+  const bool previous_runways = s_show_runways;
+  const bool previous_labels = s_show_runway_labels;
   s_show_runways = runways;
   s_show_runway_labels = labels;
-  saveShowRunways();
-  saveShowRunwayLabels();
+  if (!saveShowRunways() || !saveShowRunwayLabels()) {
+    s_show_runways = previous_runways;
+    s_show_runway_labels = previous_labels;
+    Serial.println("planeradar: airport overlay not persisted");
+    return false;
+  }
   Serial.printf("Airport overlay: runways=%s labels=%s\n",
                 runways ? "on" : "off", labels ? "on" : "off");
+  return true;
 }
 
 bool showCallsign() { return (s_label_mask & kLabelCallsign) != 0; }
@@ -186,7 +236,9 @@ bool showAltitude() { return (s_label_mask & kLabelAltitude) != 0; }
 uint16_t labelMask() { return s_label_mask; }
 
 bool saveLabelMask(uint16_t mask) {
-  if (!services::adsb::validLabelMask(mask) || !persistLabelMask(mask)) return false;
+  if (!services::adsb::validLabelMask(mask) || !persistLabelMask(mask)) {
+    return false;
+  }
   s_label_mask = mask;
   return true;
 }
@@ -210,27 +262,34 @@ bool saveTopDirection(const char* direction) {
   if (direction == nullptr || direction[0] == '\0' || direction[1] != '\0') {
     return false;
   }
+  TopDirection next = TopDirection::North;
   switch (direction[0]) {
     case 'N':
     case 'n':
-      s_top_direction = TopDirection::North;
+      next = TopDirection::North;
       break;
     case 'E':
     case 'e':
-      s_top_direction = TopDirection::East;
+      next = TopDirection::East;
       break;
     case 'S':
     case 's':
-      s_top_direction = TopDirection::South;
+      next = TopDirection::South;
       break;
     case 'W':
     case 'w':
-      s_top_direction = TopDirection::West;
+      next = TopDirection::West;
       break;
     default:
       return false;
   }
-  persistTopDirection();
+  const TopDirection previous = s_top_direction;
+  s_top_direction = next;
+  if (!persistTopDirection()) {
+    s_top_direction = previous;
+    Serial.println("planeradar: orientation not persisted");
+    return false;
+  }
   Serial.printf("Radar top direction: %s\n", topDirectionCode());
   return true;
 }
@@ -265,14 +324,24 @@ float orientHeading(float heading_deg) {
 }
 
 void saveMilesFromPortal(const char* checkbox_value) {
+  const bool previous = s_use_miles;
   s_use_miles = portalCheckboxChecked(checkbox_value);
-  saveUseMiles();
+  if (!saveUseMiles()) {
+    s_use_miles = previous;
+    Serial.println("planeradar: miles preference not persisted");
+    return;
+  }
   Serial.printf("Distance units: %s\n", s_use_miles ? "miles" : "km");
 }
 
 void saveRunwaysFromPortal(const char* checkbox_value) {
+  const bool previous = s_show_runways;
   s_show_runways = portalCheckboxChecked(checkbox_value);
-  saveShowRunways();
+  if (!saveShowRunways()) {
+    s_show_runways = previous;
+    Serial.println("planeradar: runway preference not persisted");
+    return;
+  }
   Serial.printf("Runway overlay: %s\n", s_show_runways ? "on" : "off");
 }
 
@@ -296,16 +365,17 @@ void unitsReset() {
   s_dim_rings = false;
   s_show_runways = true;
   s_show_runway_labels = true;
-  if (s_prefs.begin(kPrefsNamespace, false)) {
-    s_prefs.remove(kPrefsMilesKey);
-    s_prefs.remove(kPrefsDimRingsKey);
-    s_prefs.remove(kPrefsSweepKey);
-    s_prefs.remove(kPrefsRunwaysKey);
-    s_prefs.remove(kPrefsRunwayLabelsKey);
-    s_prefs.remove(kPrefsTopDirectionKey);
-    s_prefs.remove(kPrefsLabelMaskKey);
-    s_prefs.remove(kPrefsLabelMaskV2Key);
-    s_prefs.end();
+  Preferences prefs;
+  if (openPrefs(prefs, false)) {
+    prefs.remove(kPrefsMilesKey);
+    prefs.remove(kPrefsDimRingsKey);
+    prefs.remove(kPrefsSweepKey);
+    prefs.remove(kPrefsRunwaysKey);
+    prefs.remove(kPrefsRunwayLabelsKey);
+    prefs.remove(kPrefsTopDirectionKey);
+    prefs.remove(kPrefsLabelMaskKey);
+    prefs.remove(kPrefsLabelMaskV2Key);
+    prefs.end();
   }
   s_top_direction = TopDirection::North;
   s_label_mask = kAllLabels;

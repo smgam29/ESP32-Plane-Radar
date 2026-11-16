@@ -133,6 +133,10 @@ Layout and colors: `include/ui/radar_theme.h`.
 | 25 km / 16 mi | ~33.3 km |
 
 Preset and miles/km choice persist across reboot (`planeradar` NVS namespace).
+Coordinates are stored as integer microdegrees (`radar/latE7`, `radar/lonE7`);
+legacy double blobs are migrated on load. A settings wipe requires an 8-second
+BOOT hold after the button has been seen released once since power-on, so
+handling the case while plugging in does not clear NVS.
 
 ### Runways
 
